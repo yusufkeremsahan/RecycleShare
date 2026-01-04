@@ -131,6 +131,15 @@ public class CollectorPage {
 
             if (isViewingAvailable) {
                 // MOD 1: REZERVE ETME (Insert Trigger)
+                // --- YENİ EKLENEN KONTROL (1. Madde) ---
+                if (wasteDAO.hasActiveReservation(username)) {
+                    showAlert("İşlem Engellendi ⛔",
+                            "Aynı anda sadece tek bir rezervasyon yapabilirsiniz!\n" +
+                                    "Lütfen önce mevcut işinizi tamamlayın.");
+                    return; // Fonksiyondan çık, işlemi yapma.
+                }
+                // ---------------------------------------
+
                 boolean success = wasteDAO.reserveWaste(selected.getId(), username);
                 if (success) {
                     showAlert("Başarılı", "Atık rezerve edildi! 'Rezerve Ettiklerim' sekmesine geçebilirsiniz.");
@@ -198,10 +207,13 @@ public class CollectorPage {
         TableColumn<Waste, Double> colAmount = new TableColumn<>("Miktar");
         colAmount.setCellValueFactory(new PropertyValueFactory<>("amount"));
 
+        TableColumn<Waste, String> colUnit = new TableColumn<>("Birim");
+        colUnit.setCellValueFactory(new PropertyValueFactory<>("unit"));
+
         TableColumn<Waste, String> colStatus = new TableColumn<>("Durum");
         colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
 
-        table.getColumns().addAll(colCat, colDist, colAmount, colStatus);
+        table.getColumns().addAll(colCat, colDist, colAmount, colUnit, colStatus);
 
         colCat.setMaxWidth(200);
         colCat.setMinWidth(160);
@@ -211,6 +223,9 @@ public class CollectorPage {
 
         colAmount.setMaxWidth(180);
         colAmount.setMinWidth(140);
+
+        colUnit.setMinWidth(50);
+        colUnit.setMaxWidth(80);
 
         colStatus.setMinWidth(320);
 

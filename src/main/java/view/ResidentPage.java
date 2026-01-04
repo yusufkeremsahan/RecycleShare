@@ -72,7 +72,18 @@ public class ResidentPage {
         txtDistrict.setPromptText("Mahalle Giriniz");
 
         TextField txtAmount = new TextField();
-        txtAmount.setPromptText("Miktar (kg)");
+        txtAmount.setPromptText("Miktar ");
+
+        ComboBox<String> cmbUnit = new ComboBox<>();
+        cmbUnit.getItems().addAll("KG", "ADET", "LITRE", "M2");
+        cmbUnit.setPromptText("Birim");
+        cmbUnit.getSelectionModel().selectFirst();
+        cmbUnit.setMaxWidth(Double.MAX_VALUE);
+
+        // Miktar ve Birimi yan yana koymak için HBox
+        HBox amountBox = new HBox(5);
+        amountBox.getChildren().addAll(txtAmount, cmbUnit);
+        HBox.setHgrow(txtAmount, javafx.scene.layout.Priority.ALWAYS);
 
         Button btnAdd = new Button("Listeye Ekle");
         btnAdd.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white;");
@@ -85,7 +96,8 @@ public class ResidentPage {
                 String cat = cmbCategory.getValue();
                 String dist = txtDistrict.getText();
                 double amount = Double.parseDouble(txtAmount.getText());
-                if (wasteDAO.addWaste(username, cat, dist, amount)) {
+                String unit = cmbUnit.getValue();
+                if (wasteDAO.addWaste(username, cat, dist, amount, unit)) {
                     lblMsg.setText("Eklendi!");
                     lblMsg.setStyle("-fx-text-fill: green;");
                     refreshTable();
@@ -111,9 +123,8 @@ public class ResidentPage {
 
         formPanel.getChildren().addAll(lblTitle, new Label("Tür:"), cmbCategory,
                 new Label("Mahalle:"), txtDistrict,
-                new Label("Miktar:"), txtAmount,
+                new Label("Miktar ve Birim:"), amountBox,
                 new Label(""), btnAdd, btnReport, lblMsg);
-
 
         // --- SAĞ PANEL (ENLER TABLOSU) --- (Feature 3)
         VBox rightPanel = new VBox(10);
@@ -157,7 +168,13 @@ public class ResidentPage {
         TableColumn<Waste, String> colStatus = new TableColumn<>("Durum");
         colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
 
-        table.getColumns().addAll(colCat, colDist, colAmount, colStatus);
+        TableColumn<Waste, String> colUnit = new TableColumn<>("Birim");
+        colUnit.setCellValueFactory(new PropertyValueFactory<>("unit"));
+
+
+        table.getColumns().clear(); // Önce temizle
+        // Sütunları ekle (Birim sütunu Miktar'dan sonra)
+        table.getColumns().addAll(colCat, colDist, colAmount, colUnit, colStatus);
 
         colCat.setMaxWidth(100);
         colCat.setMinWidth(80);
@@ -166,6 +183,7 @@ public class ResidentPage {
         colAmount.setMinWidth(70);
 
         colStatus.setMinWidth(160);
+        colUnit.setMaxWidth(60);
 
 
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
