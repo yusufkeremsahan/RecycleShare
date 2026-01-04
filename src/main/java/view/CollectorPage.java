@@ -1,17 +1,17 @@
 package view;
 
 import dao.WasteDAO;
-import model.Waste; // Waste sınıfın org.example içindeyse 'import org.example.Waste;' yap
+import model.Waste;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 
 import java.util.Optional;
@@ -21,12 +21,15 @@ public class CollectorPage {
     private String username;
     private WasteDAO wasteDAO = new WasteDAO();
     private TableView<Waste> table = new TableView<>();
-
-    // Pencereyi kapatabilmek için stage referansı
     private Stage stage;
 
     // Hangi moddayız? (true = Müsait olanlar, false = Rezerve ettiklerim)
     private boolean isViewingAvailable = true;
+
+    // Arayüz elemanlarını kontrol etmek için referanslar
+    private ToggleButton tglAvailable;
+    private ToggleButton tglReserved;
+    private Button btnAction;
 
     public CollectorPage(String username) {
         this.username = username;
@@ -36,146 +39,205 @@ public class CollectorPage {
         stage = new Stage();
         stage.setTitle("RecycleShare - Toplayıcı Paneli (" + username + ")");
 
-        // --- ANA ÜST KONTEYNER (VBox) ---
-        VBox mainTopContainer = new VBox(10); // 10px boşluklu alt alta dizilim
-        mainTopContainer.setPadding(new Insets(10));
-        mainTopContainer.setStyle("-fx-background-color: #e0f7fa; -fx-border-color: #b2ebf2; -fx-border-width: 0 0 1 0;");
+        // 1. ARKA PLAN (Yeşil Gradyan)
+        StackPane rootPane = new StackPane();
+        rootPane.setStyle("-fx-background-color: linear-gradient(to bottom right, #2E7D32, #81C784);");
 
-        // ---------------------------------------------------------
-        // SATIR 1: ARAMA, YENİLEME ve ÇIKIŞ (HBox)
-        // ---------------------------------------------------------
-        HBox searchRow = new HBox(10);
+        // 2. ANA DÜZEN (BorderPane)
+        BorderPane mainLayout = new BorderPane();
 
-        Label lblSearch = new Label("Mahalle Ara:");
-        TextField txtSearch = new TextField();
-        txtSearch.setPromptText("Örn: Bornova");
+        // --- ÜST BAR (HEADER) ---
+        HBox header = createHeader();
+        mainLayout.setTop(header);
 
-        Button btnSearch = new Button("Ara 🔍");
-        Button btnRefresh = new Button("🔄 Yenile");
+        // --- ORTA ALAN (BEYAZ KART) ---
+        VBox contentCard = createContentCard();
 
-        // Sağa yaslamak için boşluk (Spacer)
+        // Kartı merkeze yerleştir ve kenarlardan boşluk bırak
+        BorderPane.setMargin(contentCard, new Insets(20));
+        mainLayout.setCenter(contentCard);
+
+        rootPane.getChildren().add(mainLayout);
+
+        // --- BAŞLANGIÇ AYARLARI ---
+        setupTable();
+        refreshTable();
+
+        Scene scene = new Scene(rootPane, 1000, 700);
+        stage.setScene(scene);
+        stage.show();
+    }
+
+    // ==========================================
+    // TASARIM BİLEŞENLERİ (UI)
+    // ==========================================
+
+    private HBox createHeader() {
+        HBox header = new HBox();
+        header.setPadding(new Insets(15, 30, 15, 30));
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.setStyle("-fx-background-color: rgba(255, 255, 255, 0.95); -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);");
+
+        // Sol Taraf: Marka ve Kullanıcı Bilgisi
+        VBox titleBox = new VBox(2);
+        Label lblBrand = new Label("RecycleShare");
+        lblBrand.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+        lblBrand.setTextFill(Color.web("#2E7D32"));
+
+        Label lblUser = new Label("Toplayıcı: " + username);
+        lblUser.setFont(Font.font("Segoe UI", 12));
+        lblUser.setTextFill(Color.GRAY);
+        titleBox.getChildren().addAll(lblBrand, lblUser);
+
+        // Aradaki Boşluk
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        // ÇIKIŞ BUTONU (Logout)
+        // Sağ Taraf: Çıkış Butonu
         Button btnLogout = new Button("Çıkış Yap 🚪");
-        btnLogout.setStyle("-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-font-weight: bold;");
+        styleDangerButton(btnLogout);
+        btnLogout.setOnAction(e -> {
+            stage.close();
+            try {
+                new LoginApp().start(new Stage());
+            } catch (Exception ex) { ex.printStackTrace(); }
+        });
 
-        // Buton Aksiyonları (Satır 1)
+        header.getChildren().addAll(titleBox, spacer, btnLogout);
+        return header;
+    }
+
+    private VBox createContentCard() {
+        VBox card = new VBox(15);
+        card.setPadding(new Insets(20));
+        // Kart Stili: Beyaz, Yuvarlak Köşe, Gölge
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 5);");
+
+        // --- 1. SATIR: Arama ve Yenileme ---
+        HBox topRow = new HBox(10);
+        topRow.setAlignment(Pos.CENTER_LEFT);
+
+        TextField txtSearch = new TextField();
+        txtSearch.setPromptText("Mahalle Ara...");
+        styleField(txtSearch);
+        txtSearch.setPrefWidth(300);
+
+        Button btnSearch = new Button("Ara 🔍");
+        styleSecondaryButton(btnSearch);
+
+        Button btnRefresh = new Button("🔄");
+        styleSecondaryButton(btnRefresh);
+        Tooltip.install(btnRefresh, new Tooltip("Tabloyu Yenile"));
+
+        // Arama Aksiyonları
         btnSearch.setOnAction(e -> {
             String keyword = txtSearch.getText();
-            // Arama sadece müsait atıklarda yapılır
             if (isViewingAvailable) {
                 table.setItems(FXCollections.observableArrayList(wasteDAO.searchWastesByDistrict(keyword)));
             } else {
                 showAlert("Bilgi", "Arama sadece 'Müsait Atıklar' modunda çalışır.");
             }
         });
-
         btnRefresh.setOnAction(e -> {
             txtSearch.clear();
             refreshTable();
         });
 
-        btnLogout.setOnAction(e -> {
-            stage.close(); // Mevcut pencreyi kapat
-            try {
-                new LoginApp().start(new Stage()); // Login ekranını yeniden aç
-            } catch (Exception ex) { ex.printStackTrace(); }
-        });
+        topRow.getChildren().addAll(txtSearch, btnSearch, btnRefresh);
 
-        searchRow.getChildren().addAll(lblSearch, txtSearch, btnSearch, btnRefresh, spacer, btnLogout);
+        // --- 2. SATIR: Sekmeler (Tabs) ---
+        HBox tabRow = new HBox(0); // Birleşik butonlar
+        tabRow.setAlignment(Pos.CENTER);
 
-        // ---------------------------------------------------------
-        // SATIR 2: MOD DEĞİŞTİRME ve İŞLEM BUTONU (HBox)
-        // ---------------------------------------------------------
-        HBox actionRow = new HBox(10);
-        actionRow.setPadding(new Insets(5, 0, 0, 0));
+        tglAvailable = new ToggleButton("Müsait Atıklar");
+        tglReserved = new ToggleButton("Rezerve Ettiklerim");
 
-        // Mod Değiştirme Butonları
-        ToggleButton tglAvailable = new ToggleButton("Müsait Atıklar");
-        ToggleButton tglReserved = new ToggleButton("Rezerve Ettiklerim");
         ToggleGroup group = new ToggleGroup();
         tglAvailable.setToggleGroup(group);
         tglReserved.setToggleGroup(group);
-        tglAvailable.setSelected(true); // Varsayılan
+        tglAvailable.setSelected(true);
 
-        // Aksiyon Butonu (Duruma göre değişecek: Rezerve Et veya Teslim Al)
-        Button btnAction = new Button("SEÇİLENİ REZERVE ET 🚛");
-        btnAction.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold;");
+        // Sekme Stilleri (Segmented Control Görünümü)
+        styleTabButton(tglAvailable, true);
+        styleTabButton(tglReserved, false);
+
+        // Mod Değiştirme Aksiyonları
+        tglAvailable.setOnAction(e -> switchMode(true));
+        tglReserved.setOnAction(e -> switchMode(false));
+
+        tabRow.getChildren().addAll(tglAvailable, tglReserved);
+
+        // --- 3. SATIR: Tablo ---
+        VBox.setVgrow(table, Priority.ALWAYS); // Tablo kalan alanı kaplasın
+        // Tablonun kendi kenarlıklarını kaldırıp karta uyumlu hale getirelim
+        table.setStyle("-fx-base: #FFFFFF; -fx-control-inner-background: #FFFFFF; -fx-background-color: #FFFFFF; -fx-padding: 5;");
+
+        // --- 4. SATIR: Ana Aksiyon Butonu ---
+        btnAction = new Button("SEÇİLENİ REZERVE ET 🚛");
+        stylePrimaryButton(btnAction);
         btnAction.setMaxWidth(Double.MAX_VALUE);
-        HBox.setHgrow(btnAction, Priority.ALWAYS); // Butonu genişlet
+        btnAction.setPrefHeight(50); // Büyük buton
 
-        // Mod Değişimi Olayları
-        tglAvailable.setOnAction(e -> {
-            isViewingAvailable = true;
+        // Ana Buton Aksiyonu
+        btnAction.setOnAction(e -> handleMainAction());
+
+        card.getChildren().addAll(topRow, new Separator(), tabRow, table, btnAction);
+        return card;
+    }
+
+    // ==========================================
+    // MANTIK VE İŞLEMLER (Business Logic)
+    // ==========================================
+
+    private void switchMode(boolean showAvailable) {
+        isViewingAvailable = showAvailable;
+        if (showAvailable) {
             btnAction.setText("SEÇİLENİ REZERVE ET 🚛");
-            btnAction.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold;");
-            refreshTable();
-        });
-
-        tglReserved.setOnAction(e -> {
-            isViewingAvailable = false;
+            // Turuncu Stil
+            btnAction.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-size: 14px;");
+            tglAvailable.setSelected(true);
+        } else {
             btnAction.setText("TESLİM AL VE PUANLA ✅");
-            btnAction.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-weight: bold;");
-            refreshTable();
-        });
+            // Yeşil Stil
+            btnAction.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-size: 14px;");
+            tglReserved.setSelected(true);
+        }
+        refreshTable();
+    }
 
-        // ANA BUTON AKSİYONU
-        btnAction.setOnAction(e -> {
-            Waste selected = table.getSelectionModel().getSelectedItem();
-            if (selected == null) {
-                showAlert("Uyarı", "Lütfen listeden bir atık seçiniz!");
+    private void handleMainAction() {
+        Waste selected = table.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showAlert("Uyarı", "Lütfen listeden bir atık seçiniz!");
+            return;
+        }
+
+        if (isViewingAvailable) {
+            // --- MOD 1: REZERVE ETME ---
+
+            // 1. KURAL: Tek Aktif Rezervasyon Kontrolü
+            if (wasteDAO.hasActiveReservation(username)) {
+                showAlert("İşlem Engellendi ⛔",
+                        "Aynı anda sadece tek bir rezervasyon yapabilirsiniz!\n" +
+                                "Lütfen önce mevcut işinizi tamamlayın.");
                 return;
             }
 
-            if (isViewingAvailable) {
-                // MOD 1: REZERVE ETME (Insert Trigger)
-                // --- YENİ EKLENEN KONTROL (1. Madde) ---
-                if (wasteDAO.hasActiveReservation(username)) {
-                    showAlert("İşlem Engellendi ⛔",
-                            "Aynı anda sadece tek bir rezervasyon yapabilirsiniz!\n" +
-                                    "Lütfen önce mevcut işinizi tamamlayın.");
-                    return; // Fonksiyondan çık, işlemi yapma.
-                }
-                // ---------------------------------------
-
-                boolean success = wasteDAO.reserveWaste(selected.getId(), username);
-                if (success) {
-                    showAlert("Başarılı", "Atık rezerve edildi! 'Rezerve Ettiklerim' sekmesine geçebilirsiniz.");
-                    refreshTable();
-                } else {
-                    showAlert("Hata", "Rezervasyon yapılamadı.");
-                }
+            boolean success = wasteDAO.reserveWaste(selected.getId(), username);
+            if (success) {
+                showAlert("Başarılı", "Atık rezerve edildi! 'Rezerve Ettiklerim' sekmesine geçebilirsiniz.");
+                refreshTable();
             } else {
-                // MOD 2: TESLİM ALMA & PUANLAMA (Update Trigger)
-                handleCompletion(selected);
+                showAlert("Hata", "Rezervasyon yapılamadı.");
             }
-        });
-
-        actionRow.getChildren().addAll(tglAvailable, tglReserved, new Label("|"), btnAction);
-
-        // İki satırı ana konteynera ekle
-        mainTopContainer.getChildren().addAll(searchRow, actionRow);
-
-
-        // --- ORTA PANEL (TABLO) ---
-        setupTable();
-        refreshTable();
-
-        // --- ANA DÜZEN ---
-        BorderPane root = new BorderPane();
-        root.setTop(mainTopContainer);
-        root.setCenter(table);
-
-        Scene scene = new Scene(root, 900, 600);
-        stage.setScene(scene);
-        stage.show();
+        } else {
+            // --- MOD 2: PUANLAMA (Eski Sistem: ChoiceDialog) ---
+            handleCompletion(selected);
+        }
     }
 
-    // Puanlama Dialog Kutusu Açan Metot
+    // Mevcut basit puanlama sistemi (İsteğin üzerine şimdilik bu kaldı)
     private void handleCompletion(Waste waste) {
-        // Kullanıcıya 1'den 5'e kadar seçenek sun
         ChoiceDialog<Integer> dialog = new ChoiceDialog<>(5, 1, 2, 3, 4, 5);
         dialog.setTitle("Puanlama");
         dialog.setHeaderText("Teslimat Tamamlanıyor...");
@@ -183,10 +245,9 @@ public class CollectorPage {
 
         Optional<Integer> result = dialog.showAndWait();
         result.ifPresent(rating -> {
-            // DAO'yu çağır -> UPDATE atılır -> Trigger çalışır -> Puan artar
             boolean success = wasteDAO.completeCollection(waste.getId(), rating);
             if (success) {
-                showAlert("İşlem Tamam", "Teslim alındı! Puan kaydedildi ve kullanıcının skoru güncellendi.");
+                showAlert("İşlem Tamam", "Teslim alındı! Puan kaydedildi.");
                 refreshTable();
             } else {
                 showAlert("Hata", "İşlem sırasında hata oluştu.");
@@ -195,7 +256,6 @@ public class CollectorPage {
     }
 
     private void setupTable() {
-        // Tabloyu her çağırdığımızda sıfırdan sütun eklememesi için temizle
         table.getColumns().clear();
 
         TableColumn<Waste, String> colCat = new TableColumn<>("Kategori");
@@ -207,6 +267,7 @@ public class CollectorPage {
         TableColumn<Waste, Double> colAmount = new TableColumn<>("Miktar");
         colAmount.setCellValueFactory(new PropertyValueFactory<>("amount"));
 
+        // Yeni eklenen Birim Sütunu
         TableColumn<Waste, String> colUnit = new TableColumn<>("Birim");
         colUnit.setCellValueFactory(new PropertyValueFactory<>("unit"));
 
@@ -215,23 +276,14 @@ public class CollectorPage {
 
         table.getColumns().addAll(colCat, colDist, colAmount, colUnit, colStatus);
 
-        colCat.setMaxWidth(200);
-        colCat.setMinWidth(160);
-
-        colDist.setMaxWidth(200);
-        colDist.setMinWidth(160);
-
-        colAmount.setMaxWidth(180);
-        colAmount.setMinWidth(140);
-
-        colUnit.setMinWidth(50);
-        colUnit.setMaxWidth(80);
-
-        colStatus.setMinWidth(320);
+        // Sütun Genişlik Ayarları (Karta sığacak şekilde optimize edildi)
+        colCat.setMaxWidth(150); colCat.setMinWidth(100);
+        colDist.setMaxWidth(150); colDist.setMinWidth(100);
+        colAmount.setMaxWidth(100); colAmount.setMinWidth(70);
+        colUnit.setMaxWidth(80); colUnit.setMinWidth(50);
+        colStatus.setMinWidth(200);
 
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-
-
         table.getColumns().forEach(col -> {
             col.setReorderable(false);
             col.setResizable(false);
@@ -242,9 +294,43 @@ public class CollectorPage {
         if (isViewingAvailable) {
             table.setItems(FXCollections.observableArrayList(wasteDAO.getAvailableWastes()));
         } else {
-            // Rezerve ettiklerimi getir
             table.setItems(FXCollections.observableArrayList(wasteDAO.getMyReservations(username)));
         }
+    }
+
+    // ==========================================
+    // STİL YARDIMCILARI (CSS benzeri)
+    // ==========================================
+
+    private void styleField(TextField txt) {
+        txt.setStyle("-fx-background-color: #f9f9f9; -fx-border-color: #e0e0e0; -fx-border-radius: 5; -fx-background-radius: 5; -fx-padding: 8;");
+        txt.setFont(Font.font("Segoe UI", 13));
+    }
+
+    private void stylePrimaryButton(Button btn) {
+        btn.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-size: 14px;");
+    }
+
+    private void styleSecondaryButton(Button btn) {
+        btn.setStyle("-fx-background-color: #EEEEEE; -fx-text-fill: #333; -fx-border-color: #DDD; -fx-border-radius: 5; -fx-background-radius: 5; -fx-cursor: hand;");
+    }
+
+    private void styleDangerButton(Button btn) {
+        btn.setStyle("-fx-background-color: #FFEBEE; -fx-text-fill: #D32F2F; -fx-border-color: #FFCDD2; -fx-border-radius: 20; -fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 5 15 5 15;");
+    }
+
+    private void styleTabButton(ToggleButton btn, boolean isLeft) {
+        // Sol ve sağ butonlar için köşe yuvarlatma (Bitişik görünüm için)
+        String radius = isLeft ? "8 0 0 8" : "0 8 8 0";
+
+        // JavaFX Bindings: Seçiliyken Yeşil, Değilken Beyaz
+        btn.styleProperty().bind(javafx.beans.binding.Bindings.when(btn.selectedProperty())
+                .then("-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-background-radius: " + radius + "; -fx-border-color: #2E7D32; -fx-border-radius: " + radius + "; -fx-font-weight: bold;")
+                .otherwise("-fx-background-color: white; -fx-text-fill: #2E7D32; -fx-background-radius: " + radius + "; -fx-border-color: #2E7D32; -fx-border-radius: " + radius + ";"));
+
+        btn.setPrefWidth(160);
+        btn.setPrefHeight(35);
+        btn.setCursor(javafx.scene.Cursor.HAND);
     }
 
     private void showAlert(String title, String content) {
