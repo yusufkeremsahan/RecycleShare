@@ -202,7 +202,25 @@ public class CollectorPage {
         colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
 
         table.getColumns().addAll(colCat, colDist, colAmount, colStatus);
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY); // Sütunları ekrana yay
+
+        colCat.setMaxWidth(200);
+        colCat.setMinWidth(160);
+
+        colDist.setMaxWidth(200);
+        colDist.setMinWidth(160);
+
+        colAmount.setMaxWidth(180);
+        colAmount.setMinWidth(140);
+
+        colStatus.setMinWidth(320);
+
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+
+        table.getColumns().forEach(col -> {
+            col.setReorderable(false);
+            col.setResizable(false);
+        });
     }
 
     private void refreshTable() {

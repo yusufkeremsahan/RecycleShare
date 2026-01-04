@@ -135,6 +135,12 @@ public class ResidentPage {
         tableTop.setItems(FXCollections.observableArrayList(userDAO.getTopUsers())); // Veriyi çek
         tableTop.setPrefHeight(300);
 
+        tableTop.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        tableTop.getColumns().forEach(col -> {
+            col.setReorderable(false);
+            col.setResizable(false);
+        });
+
         rightPanel.getChildren().addAll(lblTop, tableTop);
 
 
@@ -152,6 +158,23 @@ public class ResidentPage {
         colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
 
         table.getColumns().addAll(colCat, colDist, colAmount, colStatus);
+
+        colCat.setMaxWidth(100);
+        colCat.setMinWidth(80);
+
+        colAmount.setMaxWidth(90);
+        colAmount.setMinWidth(70);
+
+        colStatus.setMinWidth(160);
+
+
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+
+        table.getColumns().forEach(col -> {
+            col.setReorderable(false); // Yer değişimi yasak
+            col.setResizable(false);   // Boyut değişimi yasak
+        });
         refreshTable();
 
         // --- ANA DÜZEN ---
