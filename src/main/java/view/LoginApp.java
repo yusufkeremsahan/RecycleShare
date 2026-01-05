@@ -72,11 +72,14 @@ public class LoginApp extends Application {
 
         // --- GİRİŞ MANTIĞI ---
         btnLogin.setOnAction(e -> {
-            String role = userDAO.login(txtUser.getText(), txtPass.getText());
+            String cleanUser = txtUser.getText().trim();
+            String cleanPass = txtPass.getText().trim();
+
+            String role = userDAO.login(cleanUser, cleanPass);
             if (role != null) {
                 lblMsg.setTextFill(Color.GREEN);
                 lblMsg.setText("Giriş başarılı! Yönlendiriliyor...");
-                openApp(role, txtUser.getText());
+                openApp(role, cleanUser);
             } else {
                 lblMsg.setTextFill(Color.RED);
                 lblMsg.setText("Hatalı kullanıcı adı veya şifre!");
