@@ -7,7 +7,7 @@ import java.util.List;
 
 public class AddressDAO {
 
-    // Kullanıcının kayıtlı adreslerinin başlıklarını getirir
+    // Kullanıcının kayıtlı adres başlıklarını getirir
     public List<String> getUserAddressTitles(String email) {
         List<String> titles = new ArrayList<>();
         String sql = "SELECT title FROM addresses WHERE user_id = (SELECT user_id FROM users WHERE email = ?)";
@@ -20,7 +20,7 @@ public class AddressDAO {
         return titles;
     }
 
-    // Seçilen başlığa göre TÜM detayları getirir
+    // Adres Detaylarını Getir
     public AddressDetails getAddressDetails(String email, String title) {
         String sql = "SELECT * FROM addresses WHERE user_id = (SELECT user_id FROM users WHERE email = ?) AND title = ?";
         try (Connection conn = DbHelper.getConnection();
@@ -44,13 +44,14 @@ public class AddressDAO {
         return null;
     }
 
-    // Yeni DETAYLI adres kaydeder
+    // Adres Kaydet
     public boolean saveAddress(String email, String title, String city, String district, String neigh,
                                String street, String buildNo, String floor, String door, String direct) {
 
-        // Gösterim amaçlı tam metin oluştur
-        String fullText = street + " No:" + buildNo + " D:" + door + " " + neigh + " " + district + "/" + city;
+        // Aynı isimde adres varsa önce onu güncellemeyi deneyebiliriz ama şimdilik duplicate kontrolü yapmadan ekliyoruz
+        // (Veya unique constraint varsa hata verir, try-catch yakalar)
 
+        String fullText = street + " No:" + buildNo + " D:" + door + " " + neigh + " " + district + "/" + city;
         String sql = "INSERT INTO addresses (user_id, title, city, district, neighborhood, street, building_no, floor_no, door_no, directions, full_address_text) " +
                 "VALUES ((SELECT user_id FROM users WHERE email = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
@@ -71,7 +72,18 @@ public class AddressDAO {
         } catch (Exception e) { e.printStackTrace(); return false; }
     }
 
-    // Veri taşıyıcı sınıf (DTO)
+    // YENİ: Adres Silme Fonksiyonu
+    public boolean deleteAddress(String email, String title) {
+        String sql = "DELETE FROM addresses WHERE user_id = (SELECT user_id FROM users WHERE email = ?) AND title = ?";
+        try (Connection conn = DbHelper.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, email);
+            pstmt.setString(2, title);
+            return pstmt.executeUpdate() > 0;
+        } catch (Exception e) { e.printStackTrace(); return false; }
+    }
+
+    // Veri taşıyıcı sınıf
     public static class AddressDetails {
         public String city, district, neighborhood, street, buildingNo, floorNo, doorNo, directions;
         public AddressDetails(String c, String d, String n, String s, String b, String f, String door, String dir) {

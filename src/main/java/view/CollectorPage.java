@@ -47,7 +47,7 @@ public class CollectorPage {
         rootPane.getChildren().add(mainLayout);
         setupTable();
         refreshTable();
-        Scene scene = new Scene(rootPane, 1000, 700);
+        Scene scene = new Scene(rootPane, 1200, 700); // Tablo genişlediği için pencereyi büyüttük
         stage.setScene(scene);
         stage.show();
     }
@@ -141,18 +141,11 @@ public class CollectorPage {
         refreshTable();
     }
 
-    // CollectorPage.java içindeki handleMainAction metodunu bununla değiştir:
-
     private void handleMainAction() {
         Waste selected = table.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            showAlert("Uyarı", "Lütfen listeden bir atık seçiniz!");
-            return;
-        }
+        if (selected == null) { showAlert("Uyarı", "Lütfen listeden bir atık seçiniz!"); return; }
 
         if (isViewingAvailable) {
-            // --- YENİ KONTROL MANTIĞI ---
-            // "Bu atığı rezerve etmeme izin var mı?" diye soruyoruz
             if (!wasteDAO.isReservationAllowed(userEmail, selected.getId())) {
                 showAlert("İşlem Engellendi ⛔",
                         "Şu an başka bir kullanıcıyla aktif rezervasyonunuz var.\n" +
@@ -160,8 +153,6 @@ public class CollectorPage {
                                 "Mevcut işinizi tamamlayın veya aynı kullanıcının diğer ilanlarına bakın.");
                 return;
             }
-
-            // İzin varsa rezerve et
             if (wasteDAO.reserveWaste(selected.getId(), userEmail)) {
                 showAlert("Başarılı", "Atık rezerve edildi! Aynı kullanıcının diğer atıklarını da alabilirsiniz.");
                 refreshTable();
@@ -169,7 +160,6 @@ public class CollectorPage {
                 showAlert("Hata", "Rezervasyon işlemi başarısız.");
             }
         } else {
-            // Puanlama / Tamamlama kısmı
             handleCompletion(selected);
         }
     }
@@ -201,17 +191,35 @@ public class CollectorPage {
         }
     }
 
+    // --- TABLO SÜTUNLARI GÜNCELLENDİ ---
     private void setupTable() {
         table.getColumns().clear();
-        TableColumn<Waste, String> c1 = new TableColumn<>("Kategori"); c1.setCellValueFactory(new PropertyValueFactory<>("category"));
-        TableColumn<Waste, String> c2 = new TableColumn<>("Mahalle"); c2.setCellValueFactory(new PropertyValueFactory<>("district"));
-        TableColumn<Waste, Double> c3 = new TableColumn<>("Miktar"); c3.setCellValueFactory(new PropertyValueFactory<>("amount"));
-        TableColumn<Waste, String> c4 = new TableColumn<>("Birim"); c4.setCellValueFactory(new PropertyValueFactory<>("unit"));
-        TableColumn<Waste, String> c5 = new TableColumn<>("Durum"); c5.setCellValueFactory(new PropertyValueFactory<>("status"));
 
-        table.getColumns().addAll(c1, c2, c3, c4, c5);
+        TableColumn<Waste, String> cName = new TableColumn<>("Sakin");
+        cName.setCellValueFactory(new PropertyValueFactory<>("ownerName")); // Modeldeki getter ile aynı olmalı
+
+        TableColumn<Waste, String> cCat = new TableColumn<>("Kategori");
+        cCat.setCellValueFactory(new PropertyValueFactory<>("category"));
+
+        TableColumn<Waste, String> cLoc = new TableColumn<>("Tam Adres");
+        cLoc.setCellValueFactory(new PropertyValueFactory<>("fullLocation")); // Modeldeki getter ile aynı olmalı
+
+        TableColumn<Waste, Double> cAmt = new TableColumn<>("Miktar");
+        cAmt.setCellValueFactory(new PropertyValueFactory<>("amount"));
+
+        TableColumn<Waste, String> cUnit = new TableColumn<>("Birim");
+        cUnit.setCellValueFactory(new PropertyValueFactory<>("unit"));
+
+        TableColumn<Waste, String> cStat = new TableColumn<>("Durum");
+        cStat.setCellValueFactory(new PropertyValueFactory<>("status"));
+
+        table.getColumns().addAll(cName, cCat, cLoc, cAmt, cUnit, cStat);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        c1.setMinWidth(100); c2.setMinWidth(100); c3.setMinWidth(70); c4.setMinWidth(50); c5.setMinWidth(150);
+
+        // Genişlik Ayarları
+        cName.setMinWidth(120);
+        cCat.setMinWidth(100);
+        cLoc.setMinWidth(250); // Adres uzun olduğu için geniş yer verdik
     }
 
     private void refreshTable() {

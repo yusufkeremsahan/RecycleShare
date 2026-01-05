@@ -1,7 +1,7 @@
 package view;
 
 import dao.AddressDAO;
-import dao.LocationDAO; // YENİ: Veritabanından İl/İlçe çekmek için
+import dao.LocationDAO;
 import dao.UserDAO;
 import dao.WasteDAO;
 import model.Waste;
@@ -17,18 +17,26 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 
+import java.util.Optional; // Silme onayı için gerekli
+
 public class ResidentPage {
 
     private String userEmail;
     private WasteDAO wasteDAO = new WasteDAO();
     private UserDAO userDAO = new UserDAO();
     private AddressDAO addressDAO = new AddressDAO();
-    private LocationDAO locationDAO = new LocationDAO(); // YENİ DAO
+    private LocationDAO locationDAO = new LocationDAO();
 
     private TableView<Waste> table = new TableView<>();
     private TableView<UserDAO.UserScore> tableTop = new TableView<>();
     private Stage stage;
     private Label lblMsg;
+
+    // Form alanlarını sınıf seviyesine çıkardım ki "Temizle" metodunda erişebilelim
+    private ComboBox<String> cmbCity, cmbDistrict, cmbNeigh, cmbSavedAddresses;
+    private TextField txtStreet, txtBuildNo, txtFloor, txtDoor, txtAddrTitle, txtAmount;
+    private TextArea txtDirections;
+    private CheckBox chkSave;
 
     public ResidentPage(String email) {
         this.userEmail = email;
@@ -46,7 +54,7 @@ public class ResidentPage {
         BorderPane contentArea = new BorderPane();
         contentArea.setPadding(new Insets(20));
 
-        // Sol: Form (Genişletildi ve Scroll Eklendi)
+        // Sol: Form
         VBox leftCard = createFormCard();
         contentArea.setLeft(leftCard);
         BorderPane.setMargin(leftCard, new Insets(0, 15, 0, 0));
@@ -66,8 +74,7 @@ public class ResidentPage {
         refreshTable();
         refreshLeaderboard();
 
-        // Ekran boyutu formu sığdırmak için biraz artırıldı
-        Scene scene = new Scene(rootPane, 1250, 750);
+        Scene scene = new Scene(rootPane, 1300, 760);
         stage.setScene(scene);
         stage.show();
     }
@@ -100,118 +107,169 @@ public class ResidentPage {
         return header;
     }
 
-    // --- FORM KARTI  ---
-
-
+    // --- YENİLENMİŞ VE GELİŞMİŞ FORM KARTI ---
     private VBox createFormCard() {
-        VBox cardContent = new VBox(10);
-        cardContent.setPadding(new Insets(15));
-        cardContent.setPrefWidth(340);
+        // Ana Kart Kutusu
+        VBox mainCard = new VBox(10);
+        mainCard.setPadding(new Insets(15));
+        mainCard.setPrefWidth(350);
+        styleCard(mainCard);
 
+        // 1. BAŞLIK (Sabit - ScrollPane dışında)
         Label lblTitle = new Label("Atık & Adres Bilgileri 📍");
-        lblTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        lblTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
         lblTitle.setTextFill(Color.web("#2E7D32"));
+        lblTitle.setPadding(new Insets(0, 0, 5, 0));
 
-        // 0. KAYITLI ADRESLER
-        ComboBox<String> cmbSavedAddresses = new ComboBox<>();
-        cmbSavedAddresses.setPromptText("Kayıtlı Adreslerimden Seç...");
+        // --- SCROLL EDİLEBİLİR İÇERİK ---
+        VBox scrollContent = new VBox(10);
+        scrollContent.setPadding(new Insets(5));
+
+        // 2. KAYITLI ADRESLER VE SİLME BUTONU
+        Label lblSaved = new Label("Kayıtlı Adreslerim:");
+        lblSaved.setStyle("-fx-font-weight: bold; -fx-text-fill: #555;");
+
+        cmbSavedAddresses = new ComboBox<>();
         cmbSavedAddresses.setMaxWidth(Double.MAX_VALUE);
-        cmbSavedAddresses.getItems().addAll(addressDAO.getUserAddressTitles(userEmail));
+        refreshAddressCombo(); // Combobox'ı dolduran yardımcı metot
 
-        // 1. SATIR: CADDE / SOKAK
-        TextField txtStreet = new TextField();
-        txtStreet.setPromptText("Cadde / Sokak");
-        styleField(txtStreet);
+        Button btnDeleteAddr = new Button("🗑️");
+        btnDeleteAddr.setStyle("-fx-background-color: #ffebee; -fx-text-fill: red; -fx-border-color: #ffcdd2; -fx-border-radius: 5;");
+        btnDeleteAddr.setTooltip(new Tooltip("Seçili adresi sil"));
+        btnDeleteAddr.setDisable(true); // Başlangıçta pasif
 
-        // 2. SATIR: İL ve İLÇE
-        ComboBox<String> cmbCity = new ComboBox<>();
-        cmbCity.setPromptText("İl");
+        HBox addressBox = new HBox(5, cmbSavedAddresses, btnDeleteAddr);
+        HBox.setHgrow(cmbSavedAddresses, Priority.ALWAYS);
+
+        // 3. ADRES FORMU ALANLARI
+        txtStreet = new TextField(); txtStreet.setPromptText("Cadde / Sokak"); styleField(txtStreet);
+
+        cmbCity = new ComboBox<>(); cmbCity.setPromptText("İl"); cmbCity.setMaxWidth(Double.MAX_VALUE);
         cmbCity.getItems().addAll(locationDAO.getAllCities());
-        cmbCity.setMaxWidth(Double.MAX_VALUE);
 
-        ComboBox<String> cmbDistrict = new ComboBox<>();
-        cmbDistrict.setPromptText("İlçe");
-        cmbDistrict.setMaxWidth(Double.MAX_VALUE);
-        cmbDistrict.setDisable(true);
+        cmbDistrict = new ComboBox<>(); cmbDistrict.setPromptText("İlçe"); cmbDistrict.setMaxWidth(Double.MAX_VALUE); cmbDistrict.setDisable(true);
 
-        HBox rowCityDist = new HBox(10, cmbCity, cmbDistrict);
-        HBox.setHgrow(cmbCity, Priority.ALWAYS);
-        HBox.setHgrow(cmbDistrict, Priority.ALWAYS);
+        HBox rowCityDist = new HBox(5, cmbCity, cmbDistrict);
+        HBox.setHgrow(cmbCity, Priority.ALWAYS); HBox.setHgrow(cmbDistrict, Priority.ALWAYS);
 
-        // 3. SATIR: MAHALLE
-        ComboBox<String> cmbNeigh = new ComboBox<>();
-        cmbNeigh.setPromptText("Mahalle Seçiniz");
-        cmbNeigh.setMaxWidth(Double.MAX_VALUE);
-        cmbNeigh.setDisable(true);
+        cmbNeigh = new ComboBox<>(); cmbNeigh.setPromptText("Mahalle"); cmbNeigh.setMaxWidth(Double.MAX_VALUE); cmbNeigh.setDisable(true);
 
-        // 4. SATIR: BİNA NO | KAT | DAİRE
-        TextField txtBuildNo = new TextField(); txtBuildNo.setPromptText("Bina No"); styleField(txtBuildNo);
-        TextField txtFloor = new TextField(); txtFloor.setPromptText("Kat"); styleField(txtFloor);
-        TextField txtDoor = new TextField(); txtDoor.setPromptText("Daire"); styleField(txtDoor);
-
+        txtBuildNo = new TextField(); txtBuildNo.setPromptText("Bina No"); styleField(txtBuildNo);
+        txtFloor = new TextField(); txtFloor.setPromptText("Kat"); styleField(txtFloor);
+        txtDoor = new TextField(); txtDoor.setPromptText("Daire"); styleField(txtDoor);
         HBox rowBuildInfo = new HBox(5, txtBuildNo, txtFloor, txtDoor);
 
-        // 5. SATIR: ADRES TARİFİ
-        TextArea txtDirections = new TextArea();
+        txtDirections = new TextArea();
         txtDirections.setPromptText("Adres Tarifi (İsteğe bağlı)");
         txtDirections.setPrefRowCount(2);
         txtDirections.setStyle("-fx-control-inner-background: #f9f9f9; -fx-border-color: #e0e0e0;");
 
-        // 6. SATIR: KAYIT SEÇENEĞİ VE BAŞLIK
-        CheckBox chkSave = new CheckBox("Adresimi Kaydet");
-        chkSave.setStyle("-fx-text-fill: black; -fx-font-size: 12px;"); // BUG FİX: Yazı rengi siyah yapıldı
+        // Kayıt Checkbox ve Başlık
+        chkSave = new CheckBox("Bu adresi kaydet");
+        chkSave.setStyle("-fx-text-fill: #333; -fx-font-size: 12px;");
 
-        TextField txtAddrTitle = new TextField();
-        txtAddrTitle.setPromptText("Adres Başlığı (Ev, İş)");
+        txtAddrTitle = new TextField();
+        txtAddrTitle.setPromptText("Adres Başlığı (Örn: Ev, İş)");
         styleField(txtAddrTitle);
-        txtAddrTitle.visibleProperty().bind(chkSave.selectedProperty());
+        txtAddrTitle.setVisible(false); // Başlangıçta gizli
+        txtAddrTitle.managedProperty().bind(txtAddrTitle.visibleProperty()); // Yer kaplamasın
 
-        // --- EVENTS ---
-        cmbCity.setOnAction(e -> {
-            String selectedCity = cmbCity.getValue();
-            if (selectedCity != null) {
-                cmbDistrict.getItems().setAll(locationDAO.getDistrictsByCity(selectedCity));
-                cmbDistrict.setDisable(false);
-                cmbNeigh.getItems().clear(); cmbNeigh.setDisable(true);
-            }
-        });
+        // --- ATIK DETAYLARI ---
+        Separator sep = new Separator();
+        Label lblWaste = new Label("Atık Detayı:");
+        lblWaste.setStyle("-fx-font-weight: bold; -fx-text-fill: #555;");
 
-        cmbDistrict.setOnAction(e -> {
-            String selectedDist = cmbDistrict.getValue();
-            if (selectedDist != null) {
-                cmbNeigh.getItems().setAll(locationDAO.getNeighborhoodsByDistrict(selectedDist));
-                cmbNeigh.setDisable(false);
-            }
-        });
+        ComboBox<String> cmbCategory = new ComboBox<>();
+        cmbCategory.setPromptText("Kategori Seç");
+        try { cmbCategory.getItems().addAll(wasteDAO.getCategories()); } catch (Exception ex) {}
+        styleComboBox(cmbCategory);
 
+        txtAmount = new TextField(); txtAmount.setPromptText("Miktar"); styleField(txtAmount);
+        ComboBox<String> cmbUnit = new ComboBox<>(); cmbUnit.setPromptText("Birim"); styleComboBox(cmbUnit); cmbUnit.setPrefWidth(90);
+
+        HBox amountBox = new HBox(5, txtAmount, cmbUnit);
+        HBox.setHgrow(txtAmount, Priority.ALWAYS);
+
+        // --- BUTONLAR ---
+        Button btnAdd = new Button("SİPARİŞ OLUŞTUR ✅");
+        stylePrimaryButton(btnAdd);
+
+        lblMsg = new Label(); lblMsg.setWrapText(true);
+
+        // --- OLAYLAR (EVENTS) ---
+
+        // 1. Yeni Adres veya Kayıtlı Adres Seçimi
         cmbSavedAddresses.setOnAction(e -> {
-            String title = cmbSavedAddresses.getValue();
-            if (title != null) {
-                AddressDAO.AddressDetails d = addressDAO.getAddressDetails(userEmail, title);
+            String selected = cmbSavedAddresses.getValue();
+            if (selected == null) return;
+
+            if (selected.equals("✨ Yeni Adres Oluştur...")) {
+                clearAddressFields();
+                btnDeleteAddr.setDisable(true);
+            } else {
+                // Veritabanından doldur
+                AddressDAO.AddressDetails d = addressDAO.getAddressDetails(userEmail, selected);
                 if (d != null) {
                     cmbCity.setValue(d.city);
+                    // Cascade tetikleneceği için ilçe ve mahalleyi manuel set ediyoruz
+                    cmbDistrict.getItems().setAll(locationDAO.getDistrictsByCity(d.city));
+                    cmbDistrict.setDisable(false);
                     cmbDistrict.setValue(d.district);
+
+                    cmbNeigh.getItems().setAll(locationDAO.getNeighborhoodsByDistrict(d.district));
+                    cmbNeigh.setDisable(false);
                     cmbNeigh.setValue(d.neighborhood);
+
                     txtStreet.setText(d.street);
                     txtBuildNo.setText(d.buildingNo);
                     txtFloor.setText(d.floorNo);
                     txtDoor.setText(d.doorNo);
                     txtDirections.setText(d.directions);
+
+                    btnDeleteAddr.setDisable(false); // Silinebilir
+                    chkSave.setSelected(false); // Zaten kayıtlı
                 }
             }
         });
 
-        Separator sep = new Separator();
+        // 2. Adres Silme
+        btnDeleteAddr.setOnAction(e -> {
+            String title = cmbSavedAddresses.getValue();
+            if (title != null && !title.equals("✨ Yeni Adres Oluştur...")) {
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Adres Sil");
+                alert.setHeaderText("'" + title + "' adresini silmek istediğinize emin misiniz?");
+                Optional<ButtonType> result = alert.showAndWait();
+                if (result.isPresent() && result.get() == ButtonType.OK) {
+                    if (addressDAO.deleteAddress(userEmail, title)) {
+                        refreshAddressCombo();
+                        clearAddressFields();
+                        lblMsg.setText("Adres silindi.");
+                        lblMsg.setTextFill(Color.BLACK);
+                    }
+                }
+            }
+        });
 
-        // --- ATIK BİLGİLERİ ---
-        ComboBox<String> cmbCategory = new ComboBox<>();
-        cmbCategory.setPromptText("Kategori");
-        try { cmbCategory.getItems().addAll(wasteDAO.getCategories()); } catch (Exception ex) {}
-        styleComboBox(cmbCategory);
+        // 3. Checkbox Görünürlüğü
+        chkSave.selectedProperty().addListener((obs, oldVal, newVal) -> txtAddrTitle.setVisible(newVal));
 
-        TextField txtAmount = new TextField(); txtAmount.setPromptText("Miktar"); styleField(txtAmount);
-        ComboBox<String> cmbUnit = new ComboBox<>(); cmbUnit.setPromptText("Birim"); styleComboBox(cmbUnit); cmbUnit.setPrefWidth(80);
+        // 4. İl-İlçe-Mahalle Zinciri
+        cmbCity.setOnAction(e -> {
+            if (cmbCity.getValue() != null) {
+                cmbDistrict.getItems().setAll(locationDAO.getDistrictsByCity(cmbCity.getValue()));
+                cmbDistrict.setDisable(false);
+                cmbNeigh.getItems().clear(); cmbNeigh.setDisable(true);
+            }
+        });
+        cmbDistrict.setOnAction(e -> {
+            if (cmbDistrict.getValue() != null) {
+                cmbNeigh.getItems().setAll(locationDAO.getNeighborhoodsByDistrict(cmbDistrict.getValue()));
+                cmbNeigh.setDisable(false);
+            }
+        });
 
+        // 5. Akıllı Birim
         cmbCategory.setOnAction(e -> {
             String sel = cmbCategory.getValue();
             if (sel != null) {
@@ -224,81 +282,127 @@ public class ResidentPage {
             }
         });
 
-        HBox amountBox = new HBox(5, txtAmount, cmbUnit);
-        HBox.setHgrow(txtAmount, Priority.ALWAYS);
-
-        Button btnAdd = new Button("LİSTEYE EKLE ➕");
-        stylePrimaryButton(btnAdd);
-        lblMsg = new Label(); lblMsg.setWrapText(true);
-
-        // --- EKLEME VE VALIDASYON ---
+        // 6. Ekleme Butonu
         btnAdd.setOnAction(e -> {
             try {
+                // 1. ADIM: FORMDAKİ VERİLERİ HEMEN DEĞİŞKENLERE AL (UI silinmeden önce!)
                 String city = cmbCity.getValue();
-                String dist = cmbDistrict.getValue();
+                String district = cmbDistrict.getValue();
                 String neigh = cmbNeigh.getValue();
-                String cat = cmbCategory.getValue();
-                String unit = cmbUnit.getValue();
                 String street = txtStreet.getText();
                 String buildNo = txtBuildNo.getText();
+                String floor = txtFloor.getText();
                 String door = txtDoor.getText();
+                String directions = txtDirections.getText();
+                String category = cmbCategory.getValue();
+                String unit = cmbUnit.getValue();
+                String amountStr = txtAmount.getText();
+                String addrTitle = txtAddrTitle.getText(); // Sadece kayıt varsa dolu olur
 
-                // BUG FİX: Detaylı adres alanları da zorunlu hale getirildi
-                if (city == null || dist == null || neigh == null || cat == null || txtAmount.getText().isEmpty() ||
-                        street.isEmpty() || buildNo.isEmpty() || door.isEmpty()) {
+                // 2. ADIM: VALIDASYON (Değişkenler üzerinden kontrol et)
+                if (city == null || district == null || neigh == null ||
+                        street.isEmpty() || buildNo.isEmpty() || door.isEmpty() ||
+                        category == null || amountStr.isEmpty()) {
 
-                    lblMsg.setText("Lütfen tüm zorunlu alanları (Cadde, Bina, Kapı No dahil) doldurun!");
+                    lblMsg.setText("Lütfen zorunlu alanları (*) doldurun.");
                     lblMsg.setTextFill(Color.RED);
                     return;
                 }
 
-                if (chkSave.isSelected() && !txtAddrTitle.getText().isEmpty()) {
-                    addressDAO.saveAddress(userEmail, txtAddrTitle.getText(), city, dist, neigh,
-                            street, buildNo, txtFloor.getText(), door, txtDirections.getText());
-                    cmbSavedAddresses.getItems().setAll(addressDAO.getUserAddressTitles(userEmail));
+                // 3. ADIM: ADRES KAYDI (Varsa)
+                if (chkSave.isSelected()) {
+                    if (addrTitle.isEmpty()) {
+                        lblMsg.setText("Kaydedilecek adres için bir başlık girin!"); lblMsg.setTextFill(Color.RED); return;
+                    }
+                    // Değişkenleri kullanarak kaydet
+                    addressDAO.saveAddress(userEmail, addrTitle, city, district, neigh,
+                            street, buildNo, floor, door, directions);
+
+                    // DİKKAT: Bu metot UI'ı temizler ama artık sorun değil, verileri aldık!
+                    refreshAddressCombo();
                 }
 
+                // 4. ADIM: SİPARİŞ OLUŞTURMA (Artık değişkenleri kullanıyoruz, UI'ı değil)
                 String fullLoc = String.format("%s Mah. %s No:%s D:%s %s/%s",
-                        neigh, street, buildNo, door, dist, city);
+                        neigh, street, buildNo, door, district, city);
 
-                double amt = Double.parseDouble(txtAmount.getText());
+                double amt = Double.parseDouble(amountStr);
 
-                if (wasteDAO.addWaste(userEmail, cat, city, dist, fullLoc, amt, unit)) {
-                    lblMsg.setText("Başarılı!"); lblMsg.setTextFill(Color.GREEN);
-                    txtAmount.clear(); refreshTable();
+                // 'city', 'district' değişkenlerini gönderiyoruz (cmbCity.getValue() yerine)
+                if (wasteDAO.addWaste(userEmail, category, city, district, fullLoc, amt, unit)) {
+                    lblMsg.setText("Sipariş başarıyla oluşturuldu! 🚀"); lblMsg.setTextFill(Color.GREEN);
+                    txtAmount.clear();
+
+                    // Adres kaydedilmediyse bile işlem bitince formu temizleyebiliriz (İsteğe bağlı)
+                    if (!chkSave.isSelected()) {
+                        // clearAddressFields(); // İstersen bunu açabilirsin
+                    }
+
+                    refreshTable();
                 } else {
-                    lblMsg.setText("Hata!"); lblMsg.setTextFill(Color.RED);
+                    lblMsg.setText("Hata oluştu."); lblMsg.setTextFill(Color.RED);
                 }
-            } catch (Exception ex) { ex.printStackTrace(); lblMsg.setText("Hata!"); }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                lblMsg.setText("Miktar sayı olmalı."); lblMsg.setTextFill(Color.RED);
+            }
         });
 
-        Button btnReport = new Button("RAPORU GÖR 🌍");
+        // Rapor Butonu
+        Button btnReport = new Button("ETKİ RAPORUMU GÖR 🌍");
         styleInfoButton(btnReport);
         btnReport.setOnAction(e -> {
             Alert a = new Alert(Alert.AlertType.INFORMATION);
             a.setTitle("Rapor"); a.setHeaderText("Etki Raporu");
-            // BUG FİX: Artık SQL tarafında fonksiyon var, burası çalışacak
             a.setContentText(userDAO.getImpactReport(userEmail));
-            a.getDialogPane().setMinHeight(250); // Rapor uzun olabilir, pencereyi büyütelim
+            a.getDialogPane().setMinHeight(250);
             a.showAndWait();
         });
 
-        cardContent.getChildren().addAll(lblTitle, cmbSavedAddresses,
+        // İçeriği Topla
+        scrollContent.getChildren().addAll(
+                lblSaved, addressBox,
                 txtStreet, rowCityDist, cmbNeigh, rowBuildInfo, txtDirections,
-                chkSave, txtAddrTitle, sep,
-                new Label("Atık Detayı:"), cmbCategory, amountBox, btnAdd, lblMsg, new Separator(), btnReport);
+                chkSave, txtAddrTitle,
+                sep, lblWaste, cmbCategory, amountBox,
+                new Label(""), btnAdd, lblMsg, new Separator(), btnReport
+        );
 
-        ScrollPane scrollPane = new ScrollPane(cardContent);
+        // ScrollPane Ayarları
+        ScrollPane scrollPane = new ScrollPane(scrollContent);
         scrollPane.setFitToWidth(true);
-        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
 
-        VBox cardContainer = new VBox(scrollPane);
-        styleCard(cardContainer);
-        cardContainer.setPrefWidth(360);
-        return cardContainer;
+        // Ana Karta Ekle (Başlık Sabit, İçerik Kayan)
+        mainCard.getChildren().addAll(lblTitle, scrollPane);
+
+        return mainCard;
     }
 
+    // Yardımcı: Adres Combobox Yenileme
+    private void refreshAddressCombo() {
+        cmbSavedAddresses.getItems().clear();
+        cmbSavedAddresses.getItems().add("✨ Yeni Adres Oluştur...");
+        cmbSavedAddresses.getItems().addAll(addressDAO.getUserAddressTitles(userEmail));
+        cmbSavedAddresses.getSelectionModel().selectFirst(); // "Yeni Adres" seçili gelsin
+    }
+
+    // Yardımcı: Alanları Temizle
+    private void clearAddressFields() {
+        txtStreet.clear();
+        txtBuildNo.clear();
+        txtFloor.clear();
+        txtDoor.clear();
+        txtDirections.clear();
+        txtAddrTitle.clear();
+        chkSave.setSelected(false);
+        cmbCity.getSelectionModel().clearSelection();
+        cmbDistrict.getItems().clear(); cmbDistrict.setDisable(true);
+        cmbNeigh.getItems().clear(); cmbNeigh.setDisable(true);
+    }
+
+    // --- TABLO VE DİĞERLERİ (AYNI) ---
     private VBox createTableCard() {
         VBox card = new VBox(10); card.setPadding(new Insets(15)); styleCard(card); VBox.setVgrow(card, Priority.ALWAYS);
         Label lbl = new Label("📋 Atık Geçmişim"); lbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));

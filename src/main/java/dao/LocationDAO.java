@@ -3,32 +3,30 @@ package dao;
 import helper.DbHelper;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class LocationDAO {
 
-    // Tüm Şehirleri Getir
+    // Tüm Şehirleri Getir (Artık Sadece İstanbul)
     public List<String> getAllCities() {
-        List<String> list = new ArrayList<>();
-        String sql = "SELECT city_name FROM tr_cities ORDER BY city_name";
-        try (Connection conn = DbHelper.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            while (rs.next()) list.add(rs.getString("city_name"));
-        } catch (Exception e) { e.printStackTrace(); }
-        return list;
+        // Veritabanı tablosu silindiği için sabit liste dönüyoruz.
+        // Bu sayede arayüz kodunu bozmadan İstanbul'u tek seçenek yapıyoruz.
+        return Arrays.asList("İstanbul");
     }
 
     // Seçilen Şehrin İlçelerini Getir
     public List<String> getDistrictsByCity(String cityName) {
+        // cityName parametresi "İstanbul" değilse boş dönebilir veya yine de ilçeleri getirebiliriz.
+        // Ancak biz sadece İstanbul ilçelerini veritabanından çekeceğiz.
+
         List<String> list = new ArrayList<>();
-        String sql = "SELECT district_name FROM tr_districts d " +
-                "JOIN tr_cities c ON d.city_id = c.city_id " +
-                "WHERE c.city_name = ? ORDER BY district_name";
+        // Artık City tablosuna JOIN yapmıyoruz, doğrudan tüm ilçeleri çekiyoruz.
+        String sql = "SELECT district_name FROM tr_districts ORDER BY district_name";
+
         try (Connection conn = DbHelper.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, cityName);
-            ResultSet rs = pstmt.executeQuery();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) list.add(rs.getString("district_name"));
         } catch (Exception e) { e.printStackTrace(); }
         return list;
