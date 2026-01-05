@@ -7,13 +7,13 @@ import java.util.List;
 
 public class UserDAO {
 
-    // GİRİŞ İŞLEMİ
-    public String login(String username, String password) {
-        String sql = "SELECT role FROM users WHERE username = ? AND password = ?";
+    // GİRİŞ İŞLEMİ (Email ile)
+    public String login(String email, String password) {
+        String sql = "SELECT role FROM users WHERE email = ? AND password = ?";
         try (Connection conn = DbHelper.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, username);
+            pstmt.setString(1, email);
             pstmt.setString(2, password);
 
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -27,14 +27,14 @@ public class UserDAO {
         return null;
     }
 
-    // 1. YENİ KULLANICI KAYDI (Register)
-    public boolean register(String username, String password, String fullName, String role) {
-        String sql = "INSERT INTO users (username, password, full_name, role, score) VALUES (?, ?, ?, ?, 0)";
+    // YENİ KULLANICI KAYDI (Email ile)
+    public boolean register(String email, String password, String fullName, String role) {
+        String sql = "INSERT INTO users (email, password, full_name, role, score) VALUES (?, ?, ?, ?, 0)";
 
         try (Connection conn = DbHelper.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, username);
+            pstmt.setString(1, email);
             pstmt.setString(2, password);
             pstmt.setString(3, fullName);
             pstmt.setString(4, role);
@@ -47,7 +47,7 @@ public class UserDAO {
         }
     }
 
-    // 2. LİDERLİK TABLOSU (Top 5 Score)
+    // LİDERLİK TABLOSU
     public static class UserScore {
         private String name;
         private int score;
@@ -71,25 +71,21 @@ public class UserDAO {
         return list;
     }
 
-    // 3. RAPOR FONKSİYONU (EKSİK OLAN KISIM BURASIYDI)
-    public String getImpactReport(String username) {
+    // RAPOR FONKSİYONU
+    public String getImpactReport(String email) {
         String report = "Henüz rapor verisi yok.";
-        // SQL tarafında yazdığımız fonksiyonu çağırıyoruz
-        String sql = "SELECT get_personal_impact_report((SELECT user_id FROM users WHERE username = ?))";
+        String sql = "SELECT get_personal_impact_report((SELECT user_id FROM users WHERE email = ?))";
 
         try (Connection conn = DbHelper.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, username);
+            pstmt.setString(1, email);
             ResultSet rs = pstmt.executeQuery();
 
             if (rs.next()) {
-                report = rs.getString(1); // PostgreSQL fonksiyonunun döndürdüğü metin
+                report = rs.getString(1);
             }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        } catch (Exception e) { e.printStackTrace(); }
         return report;
     }
 }

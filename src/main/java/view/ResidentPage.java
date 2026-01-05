@@ -1,5 +1,7 @@
 package view;
 
+import dao.AddressDAO;
+import dao.LocationDAO; // YENİ: Veritabanından İl/İlçe çekmek için
 import dao.UserDAO;
 import dao.WasteDAO;
 import model.Waste;
@@ -9,7 +11,6 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -18,70 +19,59 @@ import javafx.stage.Stage;
 
 public class ResidentPage {
 
-    private String username;
+    private String userEmail;
     private WasteDAO wasteDAO = new WasteDAO();
     private UserDAO userDAO = new UserDAO();
+    private AddressDAO addressDAO = new AddressDAO();
+    private LocationDAO locationDAO = new LocationDAO(); // YENİ DAO
 
     private TableView<Waste> table = new TableView<>();
     private TableView<UserDAO.UserScore> tableTop = new TableView<>();
-
     private Stage stage;
+    private Label lblMsg;
 
-    // UI Referansları
-    private Label lblMsg; // Mesajları göstermek için
-
-    public ResidentPage(String username) {
-        this.username = username;
+    public ResidentPage(String email) {
+        this.userEmail = email;
     }
 
     public void show() {
         stage = new Stage();
-        stage.setTitle("RecycleShare - Sakin Paneli (" + username + ")");
-
-        // 1. ARKA PLAN (Yeşil Gradyan)
+        stage.setTitle("RecycleShare - Sakin Paneli (" + userEmail + ")");
         StackPane rootPane = new StackPane();
         rootPane.setStyle("-fx-background-color: linear-gradient(to bottom right, #2E7D32, #81C784);");
 
-        // 2. ANA DÜZEN
         BorderPane mainLayout = new BorderPane();
-
-        // --- ÜST BAR (HEADER) ---
         mainLayout.setTop(createHeader());
 
-        // --- İÇERİK ALANI (3 Kartlı Yapı) ---
-        // Sol: Form, Orta: Tablo, Sağ: Liderlik
         BorderPane contentArea = new BorderPane();
         contentArea.setPadding(new Insets(20));
 
-        // Sol Panel (Form)
+        // Sol: Form (Genişletildi ve Scroll Eklendi)
         VBox leftCard = createFormCard();
         contentArea.setLeft(leftCard);
-        BorderPane.setMargin(leftCard, new Insets(0, 15, 0, 0)); // Sağdan boşluk
+        BorderPane.setMargin(leftCard, new Insets(0, 15, 0, 0));
 
-        // Sağ Panel (Liderlik)
+        // Sağ: Liderlik
         VBox rightCard = createLeaderboardCard();
         contentArea.setRight(rightCard);
-        BorderPane.setMargin(rightCard, new Insets(0, 0, 0, 15)); // Soldan boşluk
+        BorderPane.setMargin(rightCard, new Insets(0, 0, 0, 15));
 
-        // Orta Panel (Atık Tablosu)
+        // Orta: Tablo
         VBox centerCard = createTableCard();
         contentArea.setCenter(centerCard);
 
         mainLayout.setCenter(contentArea);
         rootPane.getChildren().add(mainLayout);
 
-        // --- BAŞLANGIÇ VERİLERİ ---
         refreshTable();
         refreshLeaderboard();
 
-        Scene scene = new Scene(rootPane, 1100, 650); // Geniş bir ekran
+        // Ekran boyutu formu sığdırmak için biraz artırıldı
+        Scene scene = new Scene(rootPane, 1250, 750);
         stage.setScene(scene);
         stage.show();
     }
 
-    // ==========================================
-    // 1. HEADER (ÜST BAR)
-    // ==========================================
     private HBox createHeader() {
         HBox header = new HBox();
         header.setPadding(new Insets(15, 30, 15, 30));
@@ -92,8 +82,7 @@ public class ResidentPage {
         Label lblBrand = new Label("RecycleShare");
         lblBrand.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
         lblBrand.setTextFill(Color.web("#2E7D32"));
-
-        Label lblUser = new Label("Sakin: " + username);
+        Label lblUser = new Label("Sakin: " + userEmail);
         lblUser.setFont(Font.font("Segoe UI", 12));
         lblUser.setTextFill(Color.GRAY);
         titleBox.getChildren().addAll(lblBrand, lblUser);
@@ -107,298 +96,248 @@ public class ResidentPage {
             stage.close();
             try { new LoginApp().start(new Stage()); } catch (Exception ex) { ex.printStackTrace(); }
         });
-
         header.getChildren().addAll(titleBox, spacer, btnLogout);
         return header;
     }
 
-    // ==========================================
-    // 2. SOL KART: ATIK EKLEME FORMU (TAM HALİ)
-    // ==========================================
-    private VBox createFormCard() {
-        VBox card = new VBox(15);
-        card.setPadding(new Insets(20));
-        card.setPrefWidth(300);
-        styleCard(card); // Kart stilini uygula
+    // --- FORM KARTI  ---
 
-        Label lblTitle = new Label("Atık Bildir ♻️");
-        lblTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+
+    private VBox createFormCard() {
+        VBox cardContent = new VBox(10);
+        cardContent.setPadding(new Insets(15));
+        cardContent.setPrefWidth(340);
+
+        Label lblTitle = new Label("Atık & Adres Bilgileri 📍");
+        lblTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
         lblTitle.setTextFill(Color.web("#2E7D32"));
 
-        // 1. Kategori Kutusu
-        ComboBox<String> cmbCategory = new ComboBox<>();
-        cmbCategory.setPromptText("Kategori Seç");
-        try {
-            cmbCategory.getItems().addAll(wasteDAO.getCategories());
-        } catch (Exception e) {
-            e.printStackTrace(); // Veritabanı hatası olursa konsola yaz
-        }
-        styleComboBox(cmbCategory);
+        // 0. KAYITLI ADRESLER
+        ComboBox<String> cmbSavedAddresses = new ComboBox<>();
+        cmbSavedAddresses.setPromptText("Kayıtlı Adreslerimden Seç...");
+        cmbSavedAddresses.setMaxWidth(Double.MAX_VALUE);
+        cmbSavedAddresses.getItems().addAll(addressDAO.getUserAddressTitles(userEmail));
 
-        // 2. Mahalle Girişi (Eksik olan kısım buradaydı)
-        TextField txtDistrict = new TextField();
-        txtDistrict.setPromptText("Mahalle (Örn: Konak)");
-        styleField(txtDistrict);
+        // 1. SATIR: CADDE / SOKAK
+        TextField txtStreet = new TextField();
+        txtStreet.setPromptText("Cadde / Sokak");
+        styleField(txtStreet);
 
-        // 3. Miktar Girişi
-        TextField txtAmount = new TextField();
-        txtAmount.setPromptText("Miktar");
-        styleField(txtAmount);
+        // 2. SATIR: İL ve İLÇE
+        ComboBox<String> cmbCity = new ComboBox<>();
+        cmbCity.setPromptText("İl");
+        cmbCity.getItems().addAll(locationDAO.getAllCities());
+        cmbCity.setMaxWidth(Double.MAX_VALUE);
 
-        // 4. Birim Kutusu
-        ComboBox<String> cmbUnit = new ComboBox<>();
-        cmbUnit.setPromptText("Birim");
-        styleComboBox(cmbUnit);
-        cmbUnit.setPrefWidth(100);
+        ComboBox<String> cmbDistrict = new ComboBox<>();
+        cmbDistrict.setPromptText("İlçe");
+        cmbDistrict.setMaxWidth(Double.MAX_VALUE);
+        cmbDistrict.setDisable(true);
 
-        // --- GELİŞMİŞ AKILLI BİRİM SİSTEMİ (Çift Seçenekli) ---
-        cmbCategory.setOnAction(e -> {
-            String selected = cmbCategory.getValue();
-            if (selected != null) {
-                // Önce listeyi temizle
-                cmbUnit.getItems().clear();
+        HBox rowCityDist = new HBox(10, cmbCity, cmbDistrict);
+        HBox.setHgrow(cmbCity, Priority.ALWAYS);
+        HBox.setHgrow(cmbDistrict, Priority.ALWAYS);
 
-                switch (selected) {
-                    // SIVILAR (Yağ)
-                    case "Bitkisel Yağ":
-                        cmbUnit.getItems().addAll("LITRE", "KG"); // İki seçenek
-                        cmbUnit.setValue("LITRE"); // Varsayılan
-                        break;
+        // 3. SATIR: MAHALLE
+        ComboBox<String> cmbNeigh = new ComboBox<>();
+        cmbNeigh.setPromptText("Mahalle Seçiniz");
+        cmbNeigh.setMaxWidth(Double.MAX_VALUE);
+        cmbNeigh.setDisable(true);
 
-                    // SAYILABİLİRLER (Şişe, Kutu, Elektronik)
-                    case "Cam Şişe":
-                    case "Metal Kutu":
-                    case "Elektronik":
-                    case "Beyaz Eşya":
-                    case "Atık Pil":
-                        cmbUnit.getItems().addAll("ADET", "KG"); // İki seçenek
-                        cmbUnit.setValue("ADET"); // Varsayılan
-                        break;
+        // 4. SATIR: BİNA NO | KAT | DAİRE
+        TextField txtBuildNo = new TextField(); txtBuildNo.setPromptText("Bina No"); styleField(txtBuildNo);
+        TextField txtFloor = new TextField(); txtFloor.setPromptText("Kat"); styleField(txtFloor);
+        TextField txtDoor = new TextField(); txtDoor.setPromptText("Daire"); styleField(txtDoor);
 
-                    // HEM TARTILAN HEM SAYILANLAR (Tekstil, Plastik)
-                    case "Tekstil":
-                    case "Plastik":
-                        cmbUnit.getItems().addAll("KG", "ADET"); // İki seçenek
-                        cmbUnit.setValue("KG"); // Varsayılan (Genelde tartılır)
-                        break;
+        HBox rowBuildInfo = new HBox(5, txtBuildNo, txtFloor, txtDoor);
 
-                    // SADECE AĞIRLIK OLANLAR (Karton, Ahşap)
-                    case "Karton":
-                    case "Ahşap":
-                    default:
-                        cmbUnit.getItems().add("KG"); // Tek seçenek (Adet mantıksız)
-                        cmbUnit.setValue("KG");
-                        break;
-                }
+        // 5. SATIR: ADRES TARİFİ
+        TextArea txtDirections = new TextArea();
+        txtDirections.setPromptText("Adres Tarifi (İsteğe bağlı)");
+        txtDirections.setPrefRowCount(2);
+        txtDirections.setStyle("-fx-control-inner-background: #f9f9f9; -fx-border-color: #e0e0e0;");
+
+        // 6. SATIR: KAYIT SEÇENEĞİ VE BAŞLIK
+        CheckBox chkSave = new CheckBox("Adresimi Kaydet");
+        chkSave.setStyle("-fx-text-fill: black; -fx-font-size: 12px;"); // BUG FİX: Yazı rengi siyah yapıldı
+
+        TextField txtAddrTitle = new TextField();
+        txtAddrTitle.setPromptText("Adres Başlığı (Ev, İş)");
+        styleField(txtAddrTitle);
+        txtAddrTitle.visibleProperty().bind(chkSave.selectedProperty());
+
+        // --- EVENTS ---
+        cmbCity.setOnAction(e -> {
+            String selectedCity = cmbCity.getValue();
+            if (selectedCity != null) {
+                cmbDistrict.getItems().setAll(locationDAO.getDistrictsByCity(selectedCity));
+                cmbDistrict.setDisable(false);
+                cmbNeigh.getItems().clear(); cmbNeigh.setDisable(true);
             }
         });
-        // ------------------------------------------------
 
-        // Miktar ve Birimi Yan Yana Koy
-        HBox amountBox = new HBox(10);
-        amountBox.getChildren().addAll(txtAmount, cmbUnit);
-        HBox.setHgrow(txtAmount, Priority.ALWAYS);
+        cmbDistrict.setOnAction(e -> {
+            String selectedDist = cmbDistrict.getValue();
+            if (selectedDist != null) {
+                cmbNeigh.getItems().setAll(locationDAO.getNeighborhoodsByDistrict(selectedDist));
+                cmbNeigh.setDisable(false);
+            }
+        });
 
-        // 5. Ekle Butonu ve Mesaj Alanı
-        Button btnAdd = new Button("LİSTEYE EKLE ➕");
-        stylePrimaryButton(btnAdd);
-
-        lblMsg = new Label(); // Hata/Başarı mesajları için
-        lblMsg.setWrapText(true);
-
-        // Ekleme Aksiyonu
-        btnAdd.setOnAction(e -> {
-            try {
-                String cat = cmbCategory.getValue();
-                String dist = txtDistrict.getText();
-                String unit = cmbUnit.getValue();
-
-                // Basit Validasyon
-                if (cat == null || dist.isEmpty() || txtAmount.getText().isEmpty() || unit == null) {
-                    lblMsg.setText("Lütfen tüm alanları doldurun.");
-                    lblMsg.setTextFill(Color.RED);
-                    return;
+        cmbSavedAddresses.setOnAction(e -> {
+            String title = cmbSavedAddresses.getValue();
+            if (title != null) {
+                AddressDAO.AddressDetails d = addressDAO.getAddressDetails(userEmail, title);
+                if (d != null) {
+                    cmbCity.setValue(d.city);
+                    cmbDistrict.setValue(d.district);
+                    cmbNeigh.setValue(d.neighborhood);
+                    txtStreet.setText(d.street);
+                    txtBuildNo.setText(d.buildingNo);
+                    txtFloor.setText(d.floorNo);
+                    txtDoor.setText(d.doorNo);
+                    txtDirections.setText(d.directions);
                 }
-
-                double amount = Double.parseDouble(txtAmount.getText());
-
-                // Veritabanına Ekle
-                if (wasteDAO.addWaste(username, cat, dist, amount, unit)) {
-                    lblMsg.setText("Başarıyla Eklendi!");
-                    lblMsg.setTextFill(Color.GREEN);
-                    // Formu Temizle
-                    txtDistrict.clear();
-                    txtAmount.clear();
-                    // Tabloyu Yenile (class seviyesindeki metodu çağırır)
-                    refreshTable();
-                } else {
-                    lblMsg.setText("Veritabanı hatası oluştu.");
-                    lblMsg.setTextFill(Color.RED);
-                }
-            } catch (NumberFormatException ex) {
-                lblMsg.setText("Miktar sayı olmalı! (Örn: 5.5)");
-                lblMsg.setTextFill(Color.RED);
-            } catch (Exception ex) {
-                lblMsg.setText("Hatalı işlem!");
-                lblMsg.setTextFill(Color.RED);
-                ex.printStackTrace();
             }
         });
 
         Separator sep = new Separator();
 
-        // 6. Rapor Butonu
-        Button btnReport = new Button("ETKİ RAPORUMU GÖR 🌍");
-        styleInfoButton(btnReport);
-        btnReport.setOnAction(e -> {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("Kişisel Etki Raporu");
-            alert.setHeaderText("Tebrikler " + username + "!");
-            // UserDAO içindeki rapor fonksiyonunu çağır
-            alert.setContentText(userDAO.getImpactReport(username));
-            alert.getDialogPane().setMinHeight(200);
-            alert.showAndWait();
+        // --- ATIK BİLGİLERİ ---
+        ComboBox<String> cmbCategory = new ComboBox<>();
+        cmbCategory.setPromptText("Kategori");
+        try { cmbCategory.getItems().addAll(wasteDAO.getCategories()); } catch (Exception ex) {}
+        styleComboBox(cmbCategory);
+
+        TextField txtAmount = new TextField(); txtAmount.setPromptText("Miktar"); styleField(txtAmount);
+        ComboBox<String> cmbUnit = new ComboBox<>(); cmbUnit.setPromptText("Birim"); styleComboBox(cmbUnit); cmbUnit.setPrefWidth(80);
+
+        cmbCategory.setOnAction(e -> {
+            String sel = cmbCategory.getValue();
+            if (sel != null) {
+                cmbUnit.getItems().clear();
+                switch (sel) {
+                    case "Bitkisel Yağ": cmbUnit.getItems().addAll("LITRE", "KG"); cmbUnit.setValue("LITRE"); break;
+                    case "Cam Şişe": case "Elektronik": case "Beyaz Eşya": cmbUnit.getItems().addAll("ADET", "KG"); cmbUnit.setValue("ADET"); break;
+                    default: cmbUnit.getItems().addAll("KG", "ADET"); cmbUnit.setValue("KG"); break;
+                }
+            }
         });
 
-        // Tüm elemanları karta ekle
-        card.getChildren().addAll(lblTitle,
-                new Label("Atık Türü:"), cmbCategory,
-                new Label("Adres/Mahalle:"), txtDistrict,
-                new Label("Miktar:"), amountBox,
-                new Label(""), btnAdd, lblMsg,
-                new Label(""), sep, btnReport);
+        HBox amountBox = new HBox(5, txtAmount, cmbUnit);
+        HBox.setHgrow(txtAmount, Priority.ALWAYS);
 
-        return card;
+        Button btnAdd = new Button("LİSTEYE EKLE ➕");
+        stylePrimaryButton(btnAdd);
+        lblMsg = new Label(); lblMsg.setWrapText(true);
+
+        // --- EKLEME VE VALIDASYON ---
+        btnAdd.setOnAction(e -> {
+            try {
+                String city = cmbCity.getValue();
+                String dist = cmbDistrict.getValue();
+                String neigh = cmbNeigh.getValue();
+                String cat = cmbCategory.getValue();
+                String unit = cmbUnit.getValue();
+                String street = txtStreet.getText();
+                String buildNo = txtBuildNo.getText();
+                String door = txtDoor.getText();
+
+                // BUG FİX: Detaylı adres alanları da zorunlu hale getirildi
+                if (city == null || dist == null || neigh == null || cat == null || txtAmount.getText().isEmpty() ||
+                        street.isEmpty() || buildNo.isEmpty() || door.isEmpty()) {
+
+                    lblMsg.setText("Lütfen tüm zorunlu alanları (Cadde, Bina, Kapı No dahil) doldurun!");
+                    lblMsg.setTextFill(Color.RED);
+                    return;
+                }
+
+                if (chkSave.isSelected() && !txtAddrTitle.getText().isEmpty()) {
+                    addressDAO.saveAddress(userEmail, txtAddrTitle.getText(), city, dist, neigh,
+                            street, buildNo, txtFloor.getText(), door, txtDirections.getText());
+                    cmbSavedAddresses.getItems().setAll(addressDAO.getUserAddressTitles(userEmail));
+                }
+
+                String fullLoc = String.format("%s Mah. %s No:%s D:%s %s/%s",
+                        neigh, street, buildNo, door, dist, city);
+
+                double amt = Double.parseDouble(txtAmount.getText());
+
+                if (wasteDAO.addWaste(userEmail, cat, city, dist, fullLoc, amt, unit)) {
+                    lblMsg.setText("Başarılı!"); lblMsg.setTextFill(Color.GREEN);
+                    txtAmount.clear(); refreshTable();
+                } else {
+                    lblMsg.setText("Hata!"); lblMsg.setTextFill(Color.RED);
+                }
+            } catch (Exception ex) { ex.printStackTrace(); lblMsg.setText("Hata!"); }
+        });
+
+        Button btnReport = new Button("RAPORU GÖR 🌍");
+        styleInfoButton(btnReport);
+        btnReport.setOnAction(e -> {
+            Alert a = new Alert(Alert.AlertType.INFORMATION);
+            a.setTitle("Rapor"); a.setHeaderText("Etki Raporu");
+            // BUG FİX: Artık SQL tarafında fonksiyon var, burası çalışacak
+            a.setContentText(userDAO.getImpactReport(userEmail));
+            a.getDialogPane().setMinHeight(250); // Rapor uzun olabilir, pencereyi büyütelim
+            a.showAndWait();
+        });
+
+        cardContent.getChildren().addAll(lblTitle, cmbSavedAddresses,
+                txtStreet, rowCityDist, cmbNeigh, rowBuildInfo, txtDirections,
+                chkSave, txtAddrTitle, sep,
+                new Label("Atık Detayı:"), cmbCategory, amountBox, btnAdd, lblMsg, new Separator(), btnReport);
+
+        ScrollPane scrollPane = new ScrollPane(cardContent);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+
+        VBox cardContainer = new VBox(scrollPane);
+        styleCard(cardContainer);
+        cardContainer.setPrefWidth(360);
+        return cardContainer;
     }
 
-    // ==========================================
-    // 3. ORTA KART: ATIK TABLOSU
-    // ==========================================
     private VBox createTableCard() {
-        VBox card = new VBox(10);
-        card.setPadding(new Insets(20));
-        styleCard(card);
-        VBox.setVgrow(card, Priority.ALWAYS); // Kartın uzamasına izin ver
+        VBox card = new VBox(10); card.setPadding(new Insets(15)); styleCard(card); VBox.setVgrow(card, Priority.ALWAYS);
+        Label lbl = new Label("📋 Atık Geçmişim"); lbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
 
-        Label lblTitle = new Label("📋 Atık Geçmişim");
-        lblTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
-        lblTitle.setTextFill(Color.DARKGRAY);
+        TableColumn<Waste, String> c1 = new TableColumn<>("Kategori"); c1.setCellValueFactory(new PropertyValueFactory<>("category"));
+        TableColumn<Waste, String> c2 = new TableColumn<>("İlçe"); c2.setCellValueFactory(new PropertyValueFactory<>("district"));
+        TableColumn<Waste, Double> c3 = new TableColumn<>("Miktar"); c3.setCellValueFactory(new PropertyValueFactory<>("amount"));
+        TableColumn<Waste, String> c4 = new TableColumn<>("Birim"); c4.setCellValueFactory(new PropertyValueFactory<>("unit"));
+        TableColumn<Waste, String> c5 = new TableColumn<>("Durum"); c5.setCellValueFactory(new PropertyValueFactory<>("status"));
 
-        setupMainTable();
-        VBox.setVgrow(table, Priority.ALWAYS); // Tablonun uzamasına izin ver
-
-        card.getChildren().addAll(lblTitle, table);
-        return card;
-    }
-
-    // ==========================================
-    // 4. SAĞ KART: LİDERLİK TABLOSU
-    // ==========================================
-    private VBox createLeaderboardCard() {
-        VBox card = new VBox(10);
-        card.setPadding(new Insets(20));
-        card.setPrefWidth(260);
-        styleCard(card);
-        card.setStyle("-fx-background-color: #FFF8E1; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 5);"); // Hafif sarımsı arka plan
-
-        Label lblTitle = new Label("🏆 En Çevreciler");
-        lblTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
-        lblTitle.setTextFill(Color.web("#FF8F00")); // Altın sarısı/Turuncu başlık
-
-        setupLeaderboardTable();
-        VBox.setVgrow(tableTop, Priority.ALWAYS);
-
-        card.getChildren().addAll(lblTitle, tableTop);
-        return card;
-    }
-
-    // ==========================================
-    // TABLO AYARLARI
-    // ==========================================
-    private void setupMainTable() {
-        TableColumn<Waste, String> colCat = new TableColumn<>("Kategori");
-        colCat.setCellValueFactory(new PropertyValueFactory<>("category"));
-
-        TableColumn<Waste, String> colDist = new TableColumn<>("Mahalle");
-        colDist.setCellValueFactory(new PropertyValueFactory<>("district"));
-
-        TableColumn<Waste, Double> colAmount = new TableColumn<>("Miktar");
-        colAmount.setCellValueFactory(new PropertyValueFactory<>("amount"));
-
-        TableColumn<Waste, String> colUnit = new TableColumn<>("Birim");
-        colUnit.setCellValueFactory(new PropertyValueFactory<>("unit"));
-
-        TableColumn<Waste, String> colStatus = new TableColumn<>("Durum");
-        colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
-
-        table.getColumns().addAll(colCat, colDist, colAmount, colUnit, colStatus);
-
-        // Genişlik Ayarları (İsteğin üzerine korundu)
-        colCat.setMaxWidth(100); colCat.setMinWidth(80);
-        colAmount.setMaxWidth(90); colAmount.setMinWidth(70);
-        colUnit.setMaxWidth(60); colUnit.setMinWidth(50);
-        colStatus.setMinWidth(150);
-
+        table.getColumns().addAll(c1, c2, c3, c4, c5);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        table.getColumns().forEach(col -> { col.setReorderable(false); col.setResizable(false); });
-
-        // Tablo Stili (Kenarlıkları kaldır)
-        table.setStyle("-fx-base: white; -fx-background-color: white;");
+        VBox.setVgrow(table, Priority.ALWAYS);
+        card.getChildren().addAll(lbl, table);
+        return card;
     }
 
-    private void setupLeaderboardTable() {
-        TableColumn<UserDAO.UserScore, String> colName = new TableColumn<>("İsim");
-        colName.setCellValueFactory(new PropertyValueFactory<>("name"));
+    private VBox createLeaderboardCard() {
+        VBox card = new VBox(10); card.setPadding(new Insets(15)); card.setPrefWidth(250); styleCard(card);
+        card.setStyle("-fx-background-color: #FFF8E1; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 5);");
+        Label lbl = new Label("🏆 Liderlik"); lbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16)); lbl.setTextFill(Color.web("#FF8F00"));
 
-        TableColumn<UserDAO.UserScore, Integer> colScore = new TableColumn<>("Puan");
-        colScore.setCellValueFactory(new PropertyValueFactory<>("score"));
+        TableColumn<UserDAO.UserScore, String> c1 = new TableColumn<>("İsim"); c1.setCellValueFactory(new PropertyValueFactory<>("name"));
+        TableColumn<UserDAO.UserScore, Integer> c2 = new TableColumn<>("Puan"); c2.setCellValueFactory(new PropertyValueFactory<>("score"));
 
-        tableTop.getColumns().addAll(colName, colScore);
+        tableTop.getColumns().addAll(c1, c2);
         tableTop.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        tableTop.getColumns().forEach(col -> { col.setReorderable(false); col.setResizable(false); });
-
-        // Sarı tema uyumu
-        tableTop.setStyle("-fx-base: #FFF8E1; -fx-control-inner-background: #FFF8E1; -fx-background-color: #FFF8E1;");
+        VBox.setVgrow(tableTop, Priority.ALWAYS);
+        card.getChildren().addAll(lbl, tableTop);
+        return card;
     }
 
-    private void refreshTable() {
-        table.setItems(FXCollections.observableArrayList(wasteDAO.getMyWastes(username)));
-    }
+    private void refreshTable() { table.setItems(FXCollections.observableArrayList(wasteDAO.getMyWastes(userEmail))); }
+    private void refreshLeaderboard() { tableTop.setItems(FXCollections.observableArrayList(userDAO.getTopUsers())); }
 
-    private void refreshLeaderboard() {
-        tableTop.setItems(FXCollections.observableArrayList(userDAO.getTopUsers()));
-    }
-
-    // ==========================================
-    // STİL YARDIMCILARI
-    // ==========================================
-    private void styleCard(VBox box) {
-        box.setStyle("-fx-background-color: white; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 5);");
-    }
-
-    private void styleField(TextField txt) {
-        txt.setStyle("-fx-background-color: #f9f9f9; -fx-border-color: #e0e0e0; -fx-border-radius: 5; -fx-background-radius: 5; -fx-padding: 8;");
-        txt.setFont(Font.font("Segoe UI", 13));
-    }
-
-    private void styleComboBox(ComboBox<?> cmb) {
-        cmb.setStyle("-fx-background-color: #f9f9f9; -fx-border-color: #e0e0e0; -fx-border-radius: 5; -fx-background-radius: 5;");
-        cmb.setMaxWidth(Double.MAX_VALUE);
-    }
-
-    private void stylePrimaryButton(Button btn) {
-        btn.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;");
-        btn.setMaxWidth(Double.MAX_VALUE);
-        btn.setPadding(new Insets(10));
-    }
-
-    private void styleInfoButton(Button btn) {
-        btn.setStyle("-fx-background-color: #0288D1; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;");
-        btn.setMaxWidth(Double.MAX_VALUE);
-        btn.setPadding(new Insets(10));
-    }
-
-    private void styleDangerButton(Button btn) {
-        btn.setStyle("-fx-background-color: #FFEBEE; -fx-text-fill: #D32F2F; -fx-border-color: #FFCDD2; -fx-border-radius: 20; -fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 5 15 5 15;");
-    }
+    private void styleCard(VBox b) { b.setStyle("-fx-background-color: white; -fx-background-radius: 15; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 5);"); }
+    private void styleField(TextInputControl t) { t.setStyle("-fx-background-color: #f9f9f9; -fx-border-color: #e0e0e0; -fx-border-radius: 5; -fx-padding: 8;"); }
+    private void styleComboBox(ComboBox<?> c) { c.setStyle("-fx-background-color: #f9f9f9; -fx-border-color: #e0e0e0; -fx-border-radius: 5;"); c.setMaxWidth(Double.MAX_VALUE); }
+    private void stylePrimaryButton(Button b) { b.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;"); b.setMaxWidth(Double.MAX_VALUE); b.setPadding(new Insets(10)); }
+    private void styleInfoButton(Button b) { b.setStyle("-fx-background-color: #0288D1; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;"); b.setMaxWidth(Double.MAX_VALUE); b.setPadding(new Insets(10)); }
+    private void styleDangerButton(Button b) { b.setStyle("-fx-background-color: #FFEBEE; -fx-text-fill: #D32F2F; -fx-border-color: #FFCDD2; -fx-border-radius: 20; -fx-padding: 5 15 5 15;"); }
 }
