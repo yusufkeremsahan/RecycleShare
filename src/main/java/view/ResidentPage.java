@@ -113,50 +113,97 @@ public class ResidentPage {
     }
 
     // ==========================================
-    // 2. SOL KART: ATIK EKLEME FORMU
+    // 2. SOL KART: ATIK EKLEME FORMU (TAM HALİ)
     // ==========================================
     private VBox createFormCard() {
         VBox card = new VBox(15);
         card.setPadding(new Insets(20));
         card.setPrefWidth(300);
-        styleCard(card);
+        styleCard(card); // Kart stilini uygula
 
         Label lblTitle = new Label("Atık Bildir ♻️");
         lblTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
         lblTitle.setTextFill(Color.web("#2E7D32"));
 
-        // Kategori
+        // 1. Kategori Kutusu
         ComboBox<String> cmbCategory = new ComboBox<>();
         cmbCategory.setPromptText("Kategori Seç");
-        cmbCategory.getItems().addAll(wasteDAO.getCategories());
+        try {
+            cmbCategory.getItems().addAll(wasteDAO.getCategories());
+        } catch (Exception e) {
+            e.printStackTrace(); // Veritabanı hatası olursa konsola yaz
+        }
         styleComboBox(cmbCategory);
 
-        // Mahalle
+        // 2. Mahalle Girişi (Eksik olan kısım buradaydı)
         TextField txtDistrict = new TextField();
         txtDistrict.setPromptText("Mahalle (Örn: Konak)");
         styleField(txtDistrict);
 
-        // Miktar ve Birim (Yan Yana)
+        // 3. Miktar Girişi
         TextField txtAmount = new TextField();
         txtAmount.setPromptText("Miktar");
         styleField(txtAmount);
 
+        // 4. Birim Kutusu
         ComboBox<String> cmbUnit = new ComboBox<>();
-        cmbUnit.getItems().addAll("KG", "ADET", "LITRE", "M2");
         cmbUnit.setPromptText("Birim");
-        cmbUnit.getSelectionModel().selectFirst();
         styleComboBox(cmbUnit);
         cmbUnit.setPrefWidth(100);
 
+        // --- GELİŞMİŞ AKILLI BİRİM SİSTEMİ (Çift Seçenekli) ---
+        cmbCategory.setOnAction(e -> {
+            String selected = cmbCategory.getValue();
+            if (selected != null) {
+                // Önce listeyi temizle
+                cmbUnit.getItems().clear();
+
+                switch (selected) {
+                    // SIVILAR (Yağ)
+                    case "Bitkisel Yağ":
+                        cmbUnit.getItems().addAll("LITRE", "KG"); // İki seçenek
+                        cmbUnit.setValue("LITRE"); // Varsayılan
+                        break;
+
+                    // SAYILABİLİRLER (Şişe, Kutu, Elektronik)
+                    case "Cam Şişe":
+                    case "Metal Kutu":
+                    case "Elektronik":
+                    case "Beyaz Eşya":
+                    case "Atık Pil":
+                        cmbUnit.getItems().addAll("ADET", "KG"); // İki seçenek
+                        cmbUnit.setValue("ADET"); // Varsayılan
+                        break;
+
+                    // HEM TARTILAN HEM SAYILANLAR (Tekstil, Plastik)
+                    case "Tekstil":
+                    case "Plastik":
+                        cmbUnit.getItems().addAll("KG", "ADET"); // İki seçenek
+                        cmbUnit.setValue("KG"); // Varsayılan (Genelde tartılır)
+                        break;
+
+                    // SADECE AĞIRLIK OLANLAR (Karton, Ahşap)
+                    case "Karton":
+                    case "Ahşap":
+                    default:
+                        cmbUnit.getItems().add("KG"); // Tek seçenek (Adet mantıksız)
+                        cmbUnit.setValue("KG");
+                        break;
+                }
+            }
+        });
+        // ------------------------------------------------
+
+        // Miktar ve Birimi Yan Yana Koy
         HBox amountBox = new HBox(10);
         amountBox.getChildren().addAll(txtAmount, cmbUnit);
         HBox.setHgrow(txtAmount, Priority.ALWAYS);
 
-        // Ekle Butonu
+        // 5. Ekle Butonu ve Mesaj Alanı
         Button btnAdd = new Button("LİSTEYE EKLE ➕");
         stylePrimaryButton(btnAdd);
 
-        lblMsg = new Label();
+        lblMsg = new Label(); // Hata/Başarı mesajları için
         lblMsg.setWrapText(true);
 
         // Ekleme Aksiyonu
@@ -164,47 +211,56 @@ public class ResidentPage {
             try {
                 String cat = cmbCategory.getValue();
                 String dist = txtDistrict.getText();
-                double amount = Double.parseDouble(txtAmount.getText());
                 String unit = cmbUnit.getValue();
 
-                if (cat == null || dist.isEmpty()) {
+                // Basit Validasyon
+                if (cat == null || dist.isEmpty() || txtAmount.getText().isEmpty() || unit == null) {
                     lblMsg.setText("Lütfen tüm alanları doldurun.");
                     lblMsg.setTextFill(Color.RED);
                     return;
                 }
 
+                double amount = Double.parseDouble(txtAmount.getText());
+
+                // Veritabanına Ekle
                 if (wasteDAO.addWaste(username, cat, dist, amount, unit)) {
                     lblMsg.setText("Başarıyla Eklendi!");
                     lblMsg.setTextFill(Color.GREEN);
-                    txtDistrict.clear(); txtAmount.clear();
+                    // Formu Temizle
+                    txtDistrict.clear();
+                    txtAmount.clear();
+                    // Tabloyu Yenile (class seviyesindeki metodu çağırır)
                     refreshTable();
                 } else {
-                    lblMsg.setText("Hata oluştu.");
+                    lblMsg.setText("Veritabanı hatası oluştu.");
                     lblMsg.setTextFill(Color.RED);
                 }
             } catch (NumberFormatException ex) {
-                lblMsg.setText("Miktar sayı olmalı!");
+                lblMsg.setText("Miktar sayı olmalı! (Örn: 5.5)");
                 lblMsg.setTextFill(Color.RED);
             } catch (Exception ex) {
-                lblMsg.setText("Hatalı giriş!");
+                lblMsg.setText("Hatalı işlem!");
                 lblMsg.setTextFill(Color.RED);
+                ex.printStackTrace();
             }
         });
 
         Separator sep = new Separator();
 
-        // Rapor Butonu
+        // 6. Rapor Butonu
         Button btnReport = new Button("ETKİ RAPORUMU GÖR 🌍");
         styleInfoButton(btnReport);
         btnReport.setOnAction(e -> {
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
             alert.setTitle("Kişisel Etki Raporu");
             alert.setHeaderText("Tebrikler " + username + "!");
+            // UserDAO içindeki rapor fonksiyonunu çağır
             alert.setContentText(userDAO.getImpactReport(username));
             alert.getDialogPane().setMinHeight(200);
             alert.showAndWait();
         });
 
+        // Tüm elemanları karta ekle
         card.getChildren().addAll(lblTitle,
                 new Label("Atık Türü:"), cmbCategory,
                 new Label("Adres/Mahalle:"), txtDistrict,
