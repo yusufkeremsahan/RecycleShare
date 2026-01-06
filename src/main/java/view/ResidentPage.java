@@ -342,7 +342,7 @@ public class ResidentPage {
         footer.setPadding(new Insets(15, 25, 15, 25));
         footer.setStyle("-fx-background-color: #F5F5F5; -fx-border-color: #E0E0E0; -fx-border-width: 1 0 0 0;");
 
-        Button btnClose = new Button("Harika! Kapat ✖");
+        Button btnClose = new Button("Kapat ✖");
         // Kırmızı yerine daha modern bir gri/siyah veya koyu yeşil tonu da olabilir ama isteğin üzerine kırmızıya yakın duralım
         btnClose.setStyle(
                 "-fx-background-color: #D32F2F; " +

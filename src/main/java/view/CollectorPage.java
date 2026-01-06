@@ -223,7 +223,7 @@ public class CollectorPage {
 
         if (isViewingAvailable) {
             if (!wasteDAO.isReservationAllowed(userEmail, selected.getId())) {
-                showAlert("İşlem Engellendi ⛔", "Aynı anda sadece tek bir kişiye ait atıkları toplayabilirsiniz."); return;
+                showAlert("İşlem Engellendi ⛔", "Aynı anda sadece tek bir adresteki atıkları toplayabilirsiniz."); return;
             }
             if (wasteDAO.reserveWaste(selected.getId(), userEmail)) {
                 showAlert("Başarılı", "Görev atandı!"); refreshTable();

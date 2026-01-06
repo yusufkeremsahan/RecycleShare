@@ -113,20 +113,29 @@ public class WasteDAO {
         return false;
     }
 
+    // Kural: Toplayıcının aktif bir rezervasyonu varsa, yeni seçeceği atık da AYNI ADRESTE olmalı.
+    // Farklı bir adreste ise sistem izin vermez.
     public boolean isReservationAllowed(String collectorEmail, int targetWasteId) {
         String sql = "SELECT COUNT(*) FROM collections c " +
                 "JOIN wastes w_active ON c.waste_id = w_active.waste_id " +
                 "JOIN users u ON c.collector_id = u.user_id " +
                 "WHERE u.email = ? " +
                 "AND w_active.status = 'REZERVEYE_ALINDI' " +
-                "AND w_active.owner_id != (SELECT owner_id FROM wastes WHERE waste_id = ?)";
+                // DEĞİŞİKLİK BURADA: Artık kişi değil, ADRES (full_location_text) karşılaştırılıyor.
+                // "Mevcut işin adresi, hedef atığın adresinden FARKLI MI?" diye bakıyoruz.
+                "AND w_active.full_location_text != (SELECT full_location_text FROM wastes WHERE waste_id = ?)";
 
         try (Connection conn = DbHelper.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
             pstmt.setString(1, collectorEmail);
             pstmt.setInt(2, targetWasteId);
+
             ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) return rs.getInt(1) == 0;
+            if (rs.next()) {
+                // Eğer farklı adreste (count > 0) aktif bir iş varsa, yeni işe izin verme (false dön).
+                return rs.getInt(1) == 0;
+            }
         } catch (SQLException e) { e.printStackTrace(); }
         return false;
     }

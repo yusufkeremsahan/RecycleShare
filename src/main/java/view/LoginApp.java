@@ -87,7 +87,7 @@ public class LoginApp extends Application {
         txtPass.setPromptText("Şifre Belirle");
         styleField(txtPass);
         ComboBox<String> cmbRole = new ComboBox<>();
-        cmbRole.getItems().addAll("SAKIN", "TOPLAYICI");
+        cmbRole.getItems().addAll("Mahalle Sakini", "Geri Dönüşüm Toplayıcısı");
         cmbRole.setPromptText("Hesap Türü");
         cmbRole.setMaxWidth(Double.MAX_VALUE);
         cmbRole.setStyle("-fx-background-color: #f9f9f9;");
@@ -100,13 +100,19 @@ public class LoginApp extends Application {
             String email = txtEmail.getText().trim();
             String pass = txtPass.getText().trim();
             String name = txtFullname.getText().trim();
-            String role = cmbRole.getValue();
+            String selectedRole = cmbRole.getValue();
 
-            if (email.isEmpty() || pass.isEmpty() || name.isEmpty() || role == null) {
+            if (email.isEmpty() || pass.isEmpty() || name.isEmpty() || selectedRole == null) {
                 lblMsg.setText("Tüm alanları doldurun!"); lblMsg.setTextFill(Color.RED);
                 shakeAnimation(card); return;
             }
-            if (userDAO.register(email, pass, name, role)) {
+            String dbRole = "";
+            if (selectedRole.equals("Mahalle Sakini")) {
+                dbRole = "SAKIN";
+            } else if (selectedRole.equals("Geri Dönüşüm Toplayıcısı")) {
+                dbRole = "TOPLAYICI";
+            }
+            if (userDAO.register(email, pass, name, dbRole)) {
                 Alert alert = new Alert(Alert.AlertType.INFORMATION, "Kayıt başarılı! Giriş yapabilirsiniz.");
                 alert.showAndWait(); showLoginScreen();
             } else {
