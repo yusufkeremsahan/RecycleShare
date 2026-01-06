@@ -19,6 +19,8 @@ import javafx.scene.text.FontWeight;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 
 public class ResidentPage {
 
@@ -85,7 +87,16 @@ public class ResidentPage {
         HBox header = new HBox();
         header.setPadding(new Insets(15, 40, 15, 40));
         header.setAlignment(Pos.CENTER_LEFT);
+        header.setSpacing(15); // Logo ile yazı arasına boşluk
         header.setStyle("-fx-background-color: #ffffff; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 2);");
+
+        // 1. KÜÇÜK LOGO
+        ImageView logoView = new ImageView();
+        try {
+            logoView.setImage(new Image("file:logo4.png"));
+            logoView.setFitHeight(50); // Yüksekliği header'a uyduruyoruz
+            logoView.setPreserveRatio(true);
+        } catch (Exception e) { }
 
         VBox titleBox = new VBox(2);
         Label lblBrand = new Label("RecycleShare");
@@ -111,7 +122,8 @@ public class ResidentPage {
             try { new LoginApp().start(new Stage()); } catch (Exception ex) { ex.printStackTrace(); }
         });
 
-        header.getChildren().addAll(titleBox, spacer, btnLogout);
+        // Header'a logoyu en başa ekliyoruz
+        header.getChildren().addAll(logoView, titleBox, spacer, btnLogout);
         return header;
     }
 

@@ -13,7 +13,8 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
-
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import java.util.Optional;
 
 public class CollectorPage {
@@ -61,7 +62,16 @@ public class CollectorPage {
         HBox header = new HBox();
         header.setPadding(new Insets(15, 40, 15, 40));
         header.setAlignment(Pos.CENTER_LEFT);
+        header.setSpacing(15); // Boşluk
         header.setStyle("-fx-background-color: #ffffff; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 2);");
+
+        // 1. KÜÇÜK LOGO
+        ImageView logoView = new ImageView();
+        try {
+            logoView.setImage(new Image("file:logo4.png"));
+            logoView.setFitHeight(50);
+            logoView.setPreserveRatio(true);
+        } catch (Exception e) { }
 
         VBox titleBox = new VBox(2);
         Label lblBrand = new Label("RecycleShare");
@@ -78,7 +88,6 @@ public class CollectorPage {
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         Button btnLogout = new Button("Güvenli Çıkış");
-        // DEĞİŞİKLİK: Kırmızı Arka Plan
         btnLogout.setStyle("-fx-background-color: #D32F2F; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-cursor: hand; -fx-padding: 8 15;");
         btnLogout.setOnMouseEntered(e -> btnLogout.setStyle("-fx-background-color: #B71C1C; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-cursor: hand; -fx-padding: 8 15;"));
         btnLogout.setOnMouseExited(e -> btnLogout.setStyle("-fx-background-color: #D32F2F; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-cursor: hand; -fx-padding: 8 15;"));
@@ -88,10 +97,10 @@ public class CollectorPage {
             try { new LoginApp().start(new Stage()); } catch (Exception ex) { ex.printStackTrace(); }
         });
 
-        header.getChildren().addAll(titleBox, spacer, btnLogout);
+        // Header'a logoyu en başa ekliyoruz
+        header.getChildren().addAll(logoView, titleBox, spacer, btnLogout);
         return header;
     }
-
     private VBox createContentCard() {
         VBox card = new VBox(20);
         card.setPadding(new Insets(30));
