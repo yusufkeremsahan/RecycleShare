@@ -50,10 +50,15 @@ public class UserDAO {
     // LİDERLİK TABLOSU
     public static class UserScore {
         private String name;
-        private int score;
-        public UserScore(String name, int score) { this.name = name; this.score = score; }
+        private double score; // DEĞİŞİKLİK: int -> double
+
+        public UserScore(String name, double score) {
+            this.name = name;
+            this.score = score;
+        }
+
         public String getName() { return name; }
-        public int getScore() { return score; }
+        public double getScore() { return score; }
     }
 
     public List<UserScore> getTopUsers() {
@@ -65,7 +70,8 @@ public class UserDAO {
              ResultSet rs = stmt.executeQuery(sql)) {
 
             while(rs.next()) {
-                list.add(new UserScore(rs.getString("full_name"), rs.getInt("score")));
+                // DEĞİŞİKLİK: getInt yerine getDouble kullanıyoruz
+                list.add(new UserScore(rs.getString("full_name"), rs.getDouble("score")));
             }
         } catch (Exception e) { e.printStackTrace(); }
         return list;

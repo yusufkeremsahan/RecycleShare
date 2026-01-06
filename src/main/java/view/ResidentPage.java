@@ -11,11 +11,14 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
 public class ResidentPage {
 
@@ -47,7 +50,7 @@ public class ResidentPage {
         stage.setTitle("RecycleShare - Sakin Paneli");
 
         StackPane rootPane = new StackPane();
-        // İsteğin üzerine Yeşil Gradyan Arka Plan
+        // Yeşil Gradyan Arka Plan
         rootPane.setStyle("-fx-background-color: linear-gradient(to bottom right, #2E7D32, #81C784);");
 
         BorderPane mainLayout = new BorderPane();
@@ -99,7 +102,6 @@ public class ResidentPage {
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         Button btnLogout = new Button("Güvenli Çıkış");
-        // DEĞİŞİKLİK 1: Kırmızı Arka Plan
         btnLogout.setStyle("-fx-background-color: #D32F2F; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-cursor: hand; -fx-padding: 8 15;");
         btnLogout.setOnMouseEntered(e -> btnLogout.setStyle("-fx-background-color: #B71C1C; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-cursor: hand; -fx-padding: 8 15;"));
         btnLogout.setOnMouseExited(e -> btnLogout.setStyle("-fx-background-color: #D32F2F; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-cursor: hand; -fx-padding: 8 15;"));
@@ -160,7 +162,6 @@ public class ResidentPage {
         txtDirections.setPrefRowCount(2);
         txtDirections.setStyle("-fx-control-inner-background: #f9f9f9; -fx-border-color: #e0e0e0; -fx-border-radius: 5;");
 
-        // DEĞİŞİKLİK 2: Yazı Rengi Siyah Yapıldı
         chkSave = new CheckBox("Bu adresi kaydet");
         chkSave.setStyle("-fx-text-fill: #333; -fx-font-size: 13px; -fx-font-weight: bold;");
 
@@ -263,9 +264,117 @@ public class ResidentPage {
         });
 
         btnAdd.setOnAction(e -> handleAddWaste());
-        btnReport.setOnAction(e -> showReport());
+
+        // DEĞİŞİKLİK: Alert yerine Özel Tasarım Pencereyi Çağırıyoruz
+        btnReport.setOnAction(e -> showCustomReportDialog());
     }
 
+    // --- YENİ EKLENEN ÖZEL RAPOR PENCERESİ METODU ---
+
+    private void showCustomReportDialog() {
+        // 1. Veriyi Çek ve FORMATLA (Bug Fix: \\n -> \n)
+        String rawReport = userDAO.getImpactReport(userEmail);
+        // Veritabanından gelen kaçış karakterlerini gerçek satır başlarına çeviriyoruz
+        String formattedReport = rawReport.replace("\\n", "\n");
+
+        // Yeni Pencere (Stage)
+        Stage reportStage = new Stage();
+        reportStage.initModality(Modality.APPLICATION_MODAL);
+        reportStage.initOwner(stage);
+        reportStage.setTitle("Kişisel Etki Raporu");
+
+        // Ana Düzen (BorderPane)
+        BorderPane layout = new BorderPane();
+        layout.setStyle("-fx-background-color: white; -fx-border-color: #2E7D32; -fx-border-width: 2;");
+
+        // --- A. HEADER (BAŞLIK) ---
+        HBox header = new HBox(15); // İkon ve yazı arası boşluk
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.setPadding(new Insets(25));
+        // Yeşil Gradyan Arka Plan
+        header.setStyle("-fx-background-color: linear-gradient(to right, #2E7D32, #43A047);");
+
+        // Başlık İkonu (Emoji kullanarak basit çözüm)
+        Label lblIcon = new Label("🌱");
+        lblIcon.setFont(Font.font("Segoe UI Emoji", 40));
+        lblIcon.setTextFill(Color.WHITE);
+
+        // Başlık Metinleri
+        VBox titleBox = new VBox(2);
+        Label lblTitle = new Label("Geri Dönüşüm Karnesi");
+        lblTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 22));
+        lblTitle.setTextFill(Color.WHITE);
+
+        Label lblSubTitle = new Label("Dünyaya katkılarınızın özeti");
+        lblSubTitle.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 14));
+        lblSubTitle.setTextFill(Color.web("#E8F5E9")); // Açık yeşilimsi beyaz
+
+        titleBox.getChildren().addAll(lblTitle, lblSubTitle);
+        header.getChildren().addAll(lblIcon, titleBox);
+
+        // --- B. İÇERİK (RAPOR METNİ) ---
+        // TextArea kullanıyoruz ama CSS ile "Kağıt" gibi gösteriyoruz
+        TextArea txtReport = new TextArea(formattedReport);
+        txtReport.setEditable(false);
+        txtReport.setWrapText(true);
+        // Monospaced font kullanarak tablo hizalamalarını düzgün gösteriyoruz
+        txtReport.setFont(Font.font("Consolas", FontWeight.NORMAL, 14));
+
+        // CSS Makyajı: Kenarlıkları kaldır, arka planı kağıt rengi yap, dolgu ekle
+        txtReport.setStyle(
+                "-fx-control-inner-background: #FAFAFA; " + // Hafif kırık beyaz (Kağıt rengi)
+                        "-fx-background-color: transparent; " +
+                        "-fx-border-color: transparent; " +
+                        "-fx-focus-color: transparent; " +
+                        "-fx-faint-focus-color: transparent; " +
+                        "-fx-padding: 10px;" // İçeriden boşluk
+        );
+
+        // İçeriği ortalayıp kenarlardan boşluk verelim
+        VBox contentBox = new VBox(txtReport);
+        contentBox.setPadding(new Insets(20));
+        contentBox.setStyle("-fx-background-color: white;");
+        VBox.setVgrow(txtReport, Priority.ALWAYS);
+
+        // --- C. FOOTER (ALT KISIM) ---
+        HBox footer = new HBox();
+        footer.setAlignment(Pos.CENTER_RIGHT);
+        footer.setPadding(new Insets(15, 25, 15, 25));
+        footer.setStyle("-fx-background-color: #F5F5F5; -fx-border-color: #E0E0E0; -fx-border-width: 1 0 0 0;");
+
+        Button btnClose = new Button("Harika! Kapat ✖");
+        // Kırmızı yerine daha modern bir gri/siyah veya koyu yeşil tonu da olabilir ama isteğin üzerine kırmızıya yakın duralım
+        btnClose.setStyle(
+                "-fx-background-color: #D32F2F; " +
+                        "-fx-text-fill: white; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-font-size: 14px; " +
+                        "-fx-background-radius: 20; " + // Yuvarlak buton
+                        "-fx-cursor: hand; " +
+                        "-fx-padding: 8 20;"
+        );
+
+        // Hover Efekti
+        btnClose.setOnMouseEntered(e -> btnClose.setStyle("-fx-background-color: #B71C1C; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 8 20;"));
+        btnClose.setOnMouseExited(e -> btnClose.setStyle("-fx-background-color: #D32F2F; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 8 20;"));
+
+        btnClose.setOnAction(e -> reportStage.close());
+        footer.getChildren().add(btnClose);
+
+        // Yerleştirme
+        layout.setTop(header);
+        layout.setCenter(contentBox);
+        layout.setBottom(footer);
+
+        // Sahne Ayarı (Biraz daha geniş)
+        Scene scene = new Scene(layout, 600, 700);
+        reportStage.setScene(scene);
+
+        // DropShadow (Gölgelendirme) efekti ekleyelim ki pop-up olduğu belli olsun
+        layout.setEffect(new DropShadow(20, Color.rgb(0, 0, 0, 0.4)));
+
+        reportStage.showAndWait();
+    }
     private void handleAddWaste() {
         try {
             String city = cmbCity.getValue();
@@ -353,7 +462,7 @@ public class ResidentPage {
         c1.setCellValueFactory(new PropertyValueFactory<>("name"));
         c1.setReorderable(false); c1.setResizable(false);
 
-        TableColumn<UserDAO.UserScore, Integer> c2 = new TableColumn<>("Puan");
+        TableColumn<UserDAO.UserScore, Double> c2 = new TableColumn<>("Puan");
         c2.setCellValueFactory(new PropertyValueFactory<>("score"));
         c2.setReorderable(false); c2.setResizable(false);
         c2.setStyle("-fx-alignment: CENTER-RIGHT;");
@@ -391,10 +500,6 @@ public class ResidentPage {
 
     private void refreshTable() { table.setItems(FXCollections.observableArrayList(wasteDAO.getMyWastes(userEmail))); }
     private void refreshLeaderboard() { tableTop.setItems(FXCollections.observableArrayList(userDAO.getTopUsers())); }
-    private void showReport() {
-        Alert a = new Alert(Alert.AlertType.INFORMATION); a.setTitle("Rapor"); a.setHeaderText("Kişisel Etki Raporu");
-        a.setContentText(userDAO.getImpactReport(userEmail)); a.showAndWait();
-    }
 
     private void styleCard(VBox b) { b.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 8, 0, 0, 4);"); }
     private void styleField(TextInputControl t) { t.setStyle("-fx-background-color: #f9f9f9; -fx-border-color: #e0e0e0; -fx-border-radius: 5; -fx-padding: 10;"); }
@@ -405,6 +510,5 @@ public class ResidentPage {
         b.setOnMouseEntered(e -> b.setStyle("-fx-background-color: #1B5E20; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand;"));
         b.setOnMouseExited(e -> b.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand;"));
     }
-    private void styleSecondaryButton(Button b) { b.setStyle("-fx-background-color: #f5f5f5; -fx-text-fill: #333; -fx-border-color: #ddd; -fx-border-radius: 5; -fx-cursor: hand;"); }
     private void styleLinkButton(Button b) { b.setStyle("-fx-background-color: transparent; -fx-text-fill: #1976D2; -fx-underline: true; -fx-cursor: hand;"); }
 }
