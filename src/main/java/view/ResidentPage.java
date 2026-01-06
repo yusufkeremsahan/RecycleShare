@@ -450,7 +450,12 @@ public class ResidentPage {
         c5.setCellValueFactory(new PropertyValueFactory<>("status"));
         c5.setReorderable(false); c5.setResizable(false);
 
-        table.getColumns().addAll(c1, c2, c3, c4, c5);
+        TableColumn<Waste, String> cDate = new TableColumn<>("Tarih");
+        cDate.setCellValueFactory(new PropertyValueFactory<>("dateInfo"));
+        cDate.setReorderable(false); cDate.setResizable(false);
+        cDate.setMinWidth(130);
+
+        table.getColumns().addAll(cDate, c1, c2, c3, c4, c5);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         table.setStyle("-fx-base: #fff; -fx-font-size: 13px;");
 

@@ -185,7 +185,21 @@ public class CollectorPage {
         cStat.setReorderable(false); cStat.setResizable(false);
         cStat.setMinWidth(120);
 
-        table.getColumns().addAll(cName, cCat, cLoc, cAmt, cUnit, cStat);
+
+        TableColumn<Waste, String> cDate = new TableColumn<>("Tarih");
+        cDate.setCellValueFactory(new PropertyValueFactory<>("dateInfo"));
+        cDate.setReorderable(false); cDate.setResizable(false);
+        cDate.setMinWidth(130);
+
+
+        TableColumn<Waste, String> cTime = new TableColumn<>("Kalan Süre ⏳");
+        cTime.setCellValueFactory(new PropertyValueFactory<>("remainingTime"));
+        cTime.setReorderable(false); cTime.setResizable(false);
+        cTime.setMinWidth(140);
+        cTime.setStyle("-fx-text-fill: #D32F2F; -fx-font-weight: bold;"); // Kırmızı ve Kalın
+
+        // Tabloya ekle:
+        table.getColumns().addAll(cDate, cName, cCat, cLoc, cAmt, cUnit, cStat, cTime);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
     }
 
