@@ -78,7 +78,7 @@ public class ResidentPage {
         refreshTable();
         refreshLeaderboard();
 
-        Scene scene = new Scene(rootPane, 1300, 800);
+        Scene scene = new Scene(rootPane, 1360, 800);
         stage.setScene(scene);
         stage.show();
     }
@@ -96,7 +96,8 @@ public class ResidentPage {
             logoView.setImage(new Image("file:logo4.png"));
             logoView.setFitHeight(50); // Yüksekliği header'a uyduruyoruz
             logoView.setPreserveRatio(true);
-        } catch (Exception e) { }
+        } catch (Exception e) {
+        }
 
         VBox titleBox = new VBox(2);
         Label lblBrand = new Label("RecycleShare");
@@ -119,7 +120,11 @@ public class ResidentPage {
 
         btnLogout.setOnAction(e -> {
             stage.close();
-            try { new LoginApp().start(new Stage()); } catch (Exception ex) { ex.printStackTrace(); }
+            try {
+                new LoginApp().start(new Stage());
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
         });
 
         // Header'a logoyu en başa ekliyoruz
@@ -153,20 +158,37 @@ public class ResidentPage {
         HBox addrBox = new HBox(10, cmbSavedAddresses, btnDeleteAddr);
         HBox.setHgrow(cmbSavedAddresses, Priority.ALWAYS);
 
-        txtStreet = new TextField(); txtStreet.setPromptText("Cadde / Sokak"); styleField(txtStreet);
+        txtStreet = new TextField();
+        txtStreet.setPromptText("Cadde / Sokak");
+        styleField(txtStreet);
 
-        cmbCity = new ComboBox<>(); cmbCity.setPromptText("İl"); cmbCity.setMaxWidth(Double.MAX_VALUE);
+        cmbCity = new ComboBox<>();
+        cmbCity.setPromptText("İl");
+        cmbCity.setMaxWidth(Double.MAX_VALUE);
         cmbCity.getItems().addAll(locationDAO.getAllCities());
 
-        cmbDistrict = new ComboBox<>(); cmbDistrict.setPromptText("İlçe"); cmbDistrict.setMaxWidth(Double.MAX_VALUE); cmbDistrict.setDisable(true);
-        cmbNeigh = new ComboBox<>(); cmbNeigh.setPromptText("Mahalle"); cmbNeigh.setMaxWidth(Double.MAX_VALUE); cmbNeigh.setDisable(true);
+        cmbDistrict = new ComboBox<>();
+        cmbDistrict.setPromptText("İlçe");
+        cmbDistrict.setMaxWidth(Double.MAX_VALUE);
+        cmbDistrict.setDisable(true);
+        cmbNeigh = new ComboBox<>();
+        cmbNeigh.setPromptText("Mahalle");
+        cmbNeigh.setMaxWidth(Double.MAX_VALUE);
+        cmbNeigh.setDisable(true);
 
         HBox rowLoc = new HBox(10, cmbCity, cmbDistrict);
-        HBox.setHgrow(cmbCity, Priority.ALWAYS); HBox.setHgrow(cmbDistrict, Priority.ALWAYS);
+        HBox.setHgrow(cmbCity, Priority.ALWAYS);
+        HBox.setHgrow(cmbDistrict, Priority.ALWAYS);
 
-        txtBuildNo = new TextField(); txtBuildNo.setPromptText("Bina"); styleField(txtBuildNo);
-        txtFloor = new TextField(); txtFloor.setPromptText("Kat"); styleField(txtFloor);
-        txtDoor = new TextField(); txtDoor.setPromptText("Daire"); styleField(txtDoor);
+        txtBuildNo = new TextField();
+        txtBuildNo.setPromptText("Bina");
+        styleField(txtBuildNo);
+        txtFloor = new TextField();
+        txtFloor.setPromptText("Kat");
+        styleField(txtFloor);
+        txtDoor = new TextField();
+        txtDoor.setPromptText("Daire");
+        styleField(txtDoor);
         HBox rowBuild = new HBox(10, txtBuildNo, txtFloor, txtDoor);
 
         txtDirections = new TextArea();
@@ -177,8 +199,11 @@ public class ResidentPage {
         chkSave = new CheckBox("Bu adresi kaydet");
         chkSave.setStyle("-fx-text-fill: #333; -fx-font-size: 13px; -fx-font-weight: bold;");
 
-        txtAddrTitle = new TextField(); txtAddrTitle.setPromptText("Adres Başlığı (Örn: Evim)"); styleField(txtAddrTitle);
-        txtAddrTitle.setVisible(false); txtAddrTitle.managedProperty().bind(txtAddrTitle.visibleProperty());
+        txtAddrTitle = new TextField();
+        txtAddrTitle.setPromptText("Adres Başlığı (Örn: Evim)");
+        styleField(txtAddrTitle);
+        txtAddrTitle.setVisible(false);
+        txtAddrTitle.managedProperty().bind(txtAddrTitle.visibleProperty());
 
         Separator sep = new Separator();
         Label lblWaste = new Label("Atık Bilgileri");
@@ -186,13 +211,20 @@ public class ResidentPage {
 
         cmbCategory = new ComboBox<>();
         cmbCategory.setPromptText("Kategori Seçiniz");
-        try { cmbCategory.getItems().addAll(wasteDAO.getCategories()); } catch (Exception ex) {}
+        try {
+            cmbCategory.getItems().addAll(wasteDAO.getCategories());
+        } catch (Exception ex) {
+        }
         styleComboBox(cmbCategory);
 
-        txtAmount = new TextField(); txtAmount.setPromptText("Miktar"); styleField(txtAmount);
+        txtAmount = new TextField();
+        txtAmount.setPromptText("Miktar");
+        styleField(txtAmount);
 
         cmbUnit = new ComboBox<>();
-        cmbUnit.setPromptText("Birim"); styleComboBox(cmbUnit); cmbUnit.setPrefWidth(100);
+        cmbUnit.setPromptText("Birim");
+        styleComboBox(cmbUnit);
+        cmbUnit.setPrefWidth(100);
 
         HBox rowAmt = new HBox(10, txtAmount, cmbUnit);
         HBox.setHgrow(txtAmount, Priority.ALWAYS);
@@ -200,10 +232,12 @@ public class ResidentPage {
         Button btnAdd = new Button("SİPARİŞ OLUŞTUR");
         stylePrimaryButton(btnAdd);
 
-        lblMsg = new Label(); lblMsg.setWrapText(true); lblMsg.setStyle("-fx-font-size: 12px;");
+        lblMsg = new Label();
+        lblMsg.setWrapText(true);
+        lblMsg.setStyle("-fx-font-size: 12px;");
 
-        Button btnReport = new Button("Etki Raporunu Görüntüle 📊");
-        styleLinkButton(btnReport);
+        Button btnReport = new Button("ETKİ RAPORUNU GÖRÜNTÜLE");
+        styleSecondaryButton(btnReport);
 
         setupFormEvents(btnAdd, btnDeleteAddr, btnReport);
 
@@ -228,11 +262,14 @@ public class ResidentPage {
             String selected = cmbSavedAddresses.getValue();
             if (selected == null) return;
             if (selected.equals("✨ Yeni Adres Oluştur...")) {
-                clearAddressFields(); btnDelete.setDisable(true);
+                clearAddressFields();
+                btnDelete.setDisable(true);
             } else {
                 AddressDAO.AddressDetails d = addressDAO.getAddressDetails(userEmail, selected);
                 if (d != null) {
-                    fillForm(d); btnDelete.setDisable(false); chkSave.setSelected(false);
+                    fillForm(d);
+                    btnDelete.setDisable(false);
+                    chkSave.setSelected(false);
                 }
             }
         });
@@ -241,7 +278,8 @@ public class ResidentPage {
             String title = cmbSavedAddresses.getValue();
             if (title != null && !title.startsWith("✨")) {
                 if (addressDAO.deleteAddress(userEmail, title)) {
-                    refreshAddressCombo(); clearAddressFields();
+                    refreshAddressCombo();
+                    clearAddressFields();
                 }
             }
         });
@@ -249,14 +287,16 @@ public class ResidentPage {
         chkSave.selectedProperty().addListener((obs, o, n) -> txtAddrTitle.setVisible(n));
 
         cmbCity.setOnAction(e -> {
-            if(cmbCity.getValue() != null) {
+            if (cmbCity.getValue() != null) {
                 cmbDistrict.getItems().setAll(locationDAO.getDistrictsByCity(cmbCity.getValue()));
-                cmbDistrict.setDisable(false); cmbNeigh.getItems().clear(); cmbNeigh.setDisable(true);
+                cmbDistrict.setDisable(false);
+                cmbNeigh.getItems().clear();
+                cmbNeigh.setDisable(true);
             }
         });
 
         cmbDistrict.setOnAction(e -> {
-            if(cmbDistrict.getValue() != null) {
+            if (cmbDistrict.getValue() != null) {
                 cmbNeigh.getItems().setAll(locationDAO.getNeighborhoodsByDistrict(cmbDistrict.getValue()));
                 cmbNeigh.setDisable(false);
             }
@@ -267,10 +307,22 @@ public class ResidentPage {
             if (sel != null) {
                 cmbUnit.getItems().clear();
                 switch (sel) {
-                    case "Bitkisel Yağ": cmbUnit.getItems().addAll("LITRE", "KG"); cmbUnit.setValue("LITRE"); break;
-                    case "Cam Şişe": case "Metal Kutu": case "Atık Pil": case "Lastik": case "Beyaz Eşya":
-                        cmbUnit.getItems().addAll("ADET", "KG"); cmbUnit.setValue("ADET"); break;
-                    default: cmbUnit.getItems().addAll("KG"); cmbUnit.setValue("KG"); break;
+                    case "Bitkisel Yağ":
+                        cmbUnit.getItems().addAll("LITRE", "KG");
+                        cmbUnit.setValue("LITRE");
+                        break;
+                    case "Cam Şişe":
+                    case "Metal Kutu":
+                    case "Atık Pil":
+                    case "Lastik":
+                    case "Beyaz Eşya":
+                        cmbUnit.getItems().addAll("ADET", "KG");
+                        cmbUnit.setValue("ADET");
+                        break;
+                    default:
+                        cmbUnit.getItems().addAll("KG");
+                        cmbUnit.setValue("KG");
+                        break;
                 }
             }
         });
@@ -387,6 +439,7 @@ public class ResidentPage {
 
         reportStage.showAndWait();
     }
+
     private void handleAddWaste() {
         try {
             String city = cmbCity.getValue();
@@ -398,8 +451,10 @@ public class ResidentPage {
             String cat = cmbCategory.getValue();
             String unit = cmbUnit.getValue();
 
-            if(city == null || dist == null || neigh == null || street.isEmpty() || build.isEmpty() || door.isEmpty() || cat == null || unit == null || txtAmount.getText().isEmpty()) {
-                lblMsg.setText("Lütfen zorunlu alanları doldurun."); lblMsg.setTextFill(Color.RED); return;
+            if (city == null || dist == null || neigh == null || street.isEmpty() || build.isEmpty() || door.isEmpty() || cat == null || unit == null || txtAmount.getText().isEmpty()) {
+                lblMsg.setText("Lütfen zorunlu alanları doldurun.");
+                lblMsg.setTextFill(Color.RED);
+                return;
             }
 
             if (chkSave.isSelected() && !txtAddrTitle.getText().isEmpty()) {
@@ -410,14 +465,19 @@ public class ResidentPage {
             String fullLoc = String.format("%s Mah. %s No:%s D:%s %s/%s", neigh, street, build, door, dist, city);
 
             if (wasteDAO.addWaste(userEmail, cat, city, dist, fullLoc, Double.parseDouble(txtAmount.getText()), unit)) {
-                lblMsg.setText("Başarılı!"); lblMsg.setTextFill(Color.GREEN); refreshTable(); txtAmount.clear();
+                lblMsg.setText("Başarılı!");
+                lblMsg.setTextFill(Color.GREEN);
+                refreshTable();
+                txtAmount.clear();
             } else {
-                lblMsg.setText("Hata oluştu."); lblMsg.setTextFill(Color.RED);
+                lblMsg.setText("Hata oluştu.");
+                lblMsg.setTextFill(Color.RED);
             }
 
-        } catch(Exception ex) {
+        } catch (Exception ex) {
             ex.printStackTrace();
-            lblMsg.setText("Hata: Miktar sayı olmalı."); lblMsg.setTextFill(Color.RED);
+            lblMsg.setText("Hata: Miktar sayı olmalı.");
+            lblMsg.setTextFill(Color.RED);
         }
     }
 
@@ -432,27 +492,34 @@ public class ResidentPage {
 
         TableColumn<Waste, String> c1 = new TableColumn<>("Kategori");
         c1.setCellValueFactory(new PropertyValueFactory<>("category"));
-        c1.setReorderable(false); c1.setResizable(false);
+        c1.setReorderable(false);
+        c1.setResizable(false);
 
         TableColumn<Waste, String> c2 = new TableColumn<>("Bölge");
         c2.setCellValueFactory(new PropertyValueFactory<>("district"));
-        c2.setReorderable(false); c2.setResizable(false);
+        c2.setReorderable(false);
+        c2.setResizable(false);
 
         TableColumn<Waste, Double> c3 = new TableColumn<>("Miktar");
         c3.setCellValueFactory(new PropertyValueFactory<>("amount"));
-        c3.setReorderable(false); c3.setResizable(false);
+        c3.setReorderable(false);
+        c3.setResizable(false);
 
         TableColumn<Waste, String> c4 = new TableColumn<>("Birim");
         c4.setCellValueFactory(new PropertyValueFactory<>("unit"));
-        c4.setReorderable(false); c4.setResizable(false);
+        c4.setReorderable(false);
+        c4.setResizable(false);
 
         TableColumn<Waste, String> c5 = new TableColumn<>("Durum");
         c5.setCellValueFactory(new PropertyValueFactory<>("status"));
-        c5.setReorderable(false); c5.setResizable(false);
+        c5.setReorderable(false);
+        c5.setResizable(false);
+        c5.setMinWidth(120);
 
         TableColumn<Waste, String> cDate = new TableColumn<>("Tarih");
         cDate.setCellValueFactory(new PropertyValueFactory<>("dateInfo"));
-        cDate.setReorderable(false); cDate.setResizable(false);
+        cDate.setReorderable(false);
+        cDate.setResizable(false);
         cDate.setMinWidth(130);
 
         table.getColumns().addAll(cDate, c1, c2, c3, c4, c5);
@@ -477,11 +544,13 @@ public class ResidentPage {
 
         TableColumn<UserDAO.UserScore, String> c1 = new TableColumn<>("İsim");
         c1.setCellValueFactory(new PropertyValueFactory<>("name"));
-        c1.setReorderable(false); c1.setResizable(false);
+        c1.setReorderable(false);
+        c1.setResizable(false);
 
         TableColumn<UserDAO.UserScore, Double> c2 = new TableColumn<>("Puan");
         c2.setCellValueFactory(new PropertyValueFactory<>("score"));
-        c2.setReorderable(false); c2.setResizable(false);
+        c2.setReorderable(false);
+        c2.setResizable(false);
         c2.setStyle("-fx-alignment: CENTER-RIGHT;");
 
         tableTop.getColumns().addAll(c1, c2);
@@ -501,31 +570,68 @@ public class ResidentPage {
     }
 
     private void clearAddressFields() {
-        txtStreet.clear(); txtBuildNo.clear(); txtFloor.clear(); txtDoor.clear(); txtDirections.clear(); txtAddrTitle.clear();
+        txtStreet.clear();
+        txtBuildNo.clear();
+        txtFloor.clear();
+        txtDoor.clear();
+        txtDirections.clear();
+        txtAddrTitle.clear();
         chkSave.setSelected(false);
         cmbCity.getSelectionModel().clearSelection();
-        cmbDistrict.getItems().clear(); cmbDistrict.setDisable(true);
-        cmbNeigh.getItems().clear(); cmbNeigh.setDisable(true);
+        cmbDistrict.getItems().clear();
+        cmbDistrict.setDisable(true);
+        cmbNeigh.getItems().clear();
+        cmbNeigh.setDisable(true);
     }
 
     private void fillForm(AddressDAO.AddressDetails d) {
         cmbCity.setValue(d.city);
-        cmbDistrict.getItems().setAll(locationDAO.getDistrictsByCity(d.city)); cmbDistrict.setValue(d.district); cmbDistrict.setDisable(false);
-        cmbNeigh.getItems().setAll(locationDAO.getNeighborhoodsByDistrict(d.district)); cmbNeigh.setValue(d.neighborhood); cmbNeigh.setDisable(false);
-        txtStreet.setText(d.street); txtBuildNo.setText(d.buildingNo); txtFloor.setText(d.floorNo); txtDoor.setText(d.doorNo); txtDirections.setText(d.directions);
+        cmbDistrict.getItems().setAll(locationDAO.getDistrictsByCity(d.city));
+        cmbDistrict.setValue(d.district);
+        cmbDistrict.setDisable(false);
+        cmbNeigh.getItems().setAll(locationDAO.getNeighborhoodsByDistrict(d.district));
+        cmbNeigh.setValue(d.neighborhood);
+        cmbNeigh.setDisable(false);
+        txtStreet.setText(d.street);
+        txtBuildNo.setText(d.buildingNo);
+        txtFloor.setText(d.floorNo);
+        txtDoor.setText(d.doorNo);
+        txtDirections.setText(d.directions);
     }
 
-    private void refreshTable() { table.setItems(FXCollections.observableArrayList(wasteDAO.getMyWastes(userEmail))); }
-    private void refreshLeaderboard() { tableTop.setItems(FXCollections.observableArrayList(userDAO.getTopUsers())); }
+    private void refreshTable() {
+        table.setItems(FXCollections.observableArrayList(wasteDAO.getMyWastes(userEmail)));
+    }
 
-    private void styleCard(VBox b) { b.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 8, 0, 0, 4);"); }
-    private void styleField(TextInputControl t) { t.setStyle("-fx-background-color: #f9f9f9; -fx-border-color: #e0e0e0; -fx-border-radius: 5; -fx-padding: 10;"); }
-    private void styleComboBox(ComboBox<?> c) { c.setStyle("-fx-background-color: #f9f9f9; -fx-border-color: #e0e0e0; -fx-border-radius: 5; -fx-padding: 2;"); }
+    private void refreshLeaderboard() {
+        tableTop.setItems(FXCollections.observableArrayList(userDAO.getTopUsers()));
+    }
+
+    private void styleCard(VBox b) {
+        b.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 8, 0, 0, 4);");
+    }
+
+    private void styleField(TextInputControl t) {
+        t.setStyle("-fx-background-color: #f9f9f9; -fx-border-color: #e0e0e0; -fx-border-radius: 5; -fx-padding: 10;");
+    }
+
+    private void styleComboBox(ComboBox<?> c) {
+        c.setStyle("-fx-background-color: #f9f9f9; -fx-border-color: #e0e0e0; -fx-border-radius: 5; -fx-padding: 2;");
+    }
+
     private void stylePrimaryButton(Button b) {
         b.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand;");
-        b.setMaxWidth(Double.MAX_VALUE); b.setPadding(new Insets(12));
+        b.setMaxWidth(Double.MAX_VALUE);
+        b.setPadding(new Insets(12));
         b.setOnMouseEntered(e -> b.setStyle("-fx-background-color: #1B5E20; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand;"));
         b.setOnMouseExited(e -> b.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand;"));
     }
-    private void styleLinkButton(Button b) { b.setStyle("-fx-background-color: transparent; -fx-text-fill: #1976D2; -fx-underline: true; -fx-cursor: hand;"); }
+
+    private void styleSecondaryButton(Button b) {
+        b.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand;");
+        b.setMaxWidth(Double.MAX_VALUE);
+        b.setPadding(new Insets(12));
+        b.setOnMouseEntered(e -> b.setStyle("-fx-background-color: #F57C00; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand;"));
+        b.setOnMouseExited(e -> b.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 6; -fx-cursor: hand;"));
+    }
 }
