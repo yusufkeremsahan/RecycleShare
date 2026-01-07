@@ -8,6 +8,39 @@ import java.util.List;
 
 public class WasteDAO {
 
+    // --- YENİ EKLENEN OTO-İPTAL METODU ---
+    // Bu metot, süresi dolan rezervasyonları kontrol eder ve iptal eder.
+    private void checkAndReleaseExpiredJobs() {
+        // TEST İÇİN: 2 Dakika ('2 minutes')
+        // GERÇEK İÇİN: 24 Saat ('24 hours') yapmayı unutma!
+        String interval = "2 minutes";
+
+        String sqlUpdate = "UPDATE wastes SET status = 'MUSAIT' " +
+                "WHERE status = 'REZERVEYE_ALINDI' AND waste_id IN (" +
+                "    SELECT waste_id FROM collections " +
+                "    WHERE reserved_at + INTERVAL '" + interval + "' < NOW()" +
+                ")";
+
+        // MUSAIT duruma dönen atıkların collection kaydını silmemiz lazım ki
+        // toplayıcının "Rezerve Ettiklerim" listesinden düşsün.
+        String sqlDelete = "DELETE FROM collections " +
+                "WHERE waste_id IN (SELECT waste_id FROM wastes WHERE status = 'MUSAIT')";
+
+        try (Connection conn = DbHelper.getConnection()) {
+            // 1. Önce atık durumunu MUSAIT'e çevir
+            try (Statement stmt = conn.createStatement()) {
+                stmt.executeUpdate(sqlUpdate);
+            }
+            // 2. Sonra boşa çıkan rezervasyon kaydını sil
+            try (Statement stmt = conn.createStatement()) {
+                stmt.executeUpdate(sqlDelete);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    // -------------------------------------
+
     public List<String> getCategories() {
         List<String> categories = new ArrayList<>();
         String sql = "SELECT category_name FROM waste_categories";
@@ -38,12 +71,9 @@ public class WasteDAO {
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
-    // --- LİSTELEME METOTLARI (Tarih formatlama eklendi) ---
-
     public List<Waste> getMyWastes(String email) {
-        // Sakin kendi atıklarına bakarken oluşturma tarihini görsün
         String sql = "SELECT w.waste_id, c.category_name, w.district, w.full_location_text, w.amount, w.unit, w.status, u.full_name, " +
-                "to_char(w.created_at, 'DD.MM.YYYY HH24:MI') as display_date " + // Tarih Formatı
+                "to_char(w.created_at, 'DD.MM.YYYY HH24:MI') as display_date " +
                 "FROM wastes w " +
                 "JOIN waste_categories c ON w.category_id = c.category_id " +
                 "JOIN users u ON w.owner_id = u.user_id " +
@@ -52,7 +82,9 @@ public class WasteDAO {
     }
 
     public List<Waste> getAvailableWastes() {
-        // Toplayıcı müsait atıkları görürken ne zaman eklendiğini görsün
+        // LİSTELEMEDEN ÖNCE TEMİZLİK YAP!
+        checkAndReleaseExpiredJobs();
+
         String sql = "SELECT waste_id, category_name, district, full_location_text, amount, unit, status, owner_name, " +
                 "to_char(created_at, 'DD.MM.YYYY HH24:MI') as display_date " +
                 "FROM available_wastes_view WHERE created_at > NOW() - INTERVAL '30 DAYS'";
@@ -60,6 +92,9 @@ public class WasteDAO {
     }
 
     public List<Waste> searchWastesByDistrict(String keyword) {
+        // ARAMADAN ÖNCE DE TEMİZLİK YAP
+        checkAndReleaseExpiredJobs();
+
         String sql = "SELECT waste_id, category_name, district, full_location_text, amount, unit, status, owner_name, " +
                 "to_char(created_at, 'DD.MM.YYYY HH24:MI') as display_date " +
                 "FROM available_wastes_view WHERE full_location_text ILIKE ?";
@@ -67,8 +102,9 @@ public class WasteDAO {
     }
 
     public List<Waste> getMyReservations(String email) {
-        // BURASI ÖNEMLİ: Geri sayım mantığı (Arkadaşının kodu)
-        // 24 saatten ne kadar kaldığını saniye cinsinden hesaplıyoruz
+        // LİSTELEMEDEN ÖNCE TEMİZLİK YAP!
+        checkAndReleaseExpiredJobs();
+
         String sql = "SELECT w.waste_id, c.category_name, w.district, w.full_location_text, w.amount, w.unit, w.status, u_owner.full_name AS owner_name, " +
                 "to_char(col.reserved_at, 'DD.MM.YYYY HH24:MI') as display_date, " +
                 "EXTRACT(EPOCH FROM (col.reserved_at + INTERVAL '24 hours' - NOW()))::INT as seconds_left " +
@@ -81,10 +117,7 @@ public class WasteDAO {
         return getWastesByQuery(sql, email);
     }
 
-    // --- İŞLEM METOTLARI ---
-
     public boolean reserveWaste(int wasteId, String collectorEmail) {
-        // Rezervasyon anını (NOW()) kaydediyoruz
         String sql = "INSERT INTO collections (waste_id, collector_id, reserved_at) VALUES (?, (SELECT user_id FROM users WHERE email = ?), NOW())";
         String sqlUpd = "UPDATE wastes SET status = 'REZERVEYE_ALINDI' WHERE waste_id = ?";
 
@@ -105,7 +138,6 @@ public class WasteDAO {
         } catch (SQLException e) { return false; }
     }
 
-    // SENİN GÜNCEL KODUN (Complete Function kullanıyor - Dokunmadım)
     public boolean completeCollection(int wasteId, int rClean, int rAcc, int rPunc) {
         String sql = "SELECT complete_waste_process(?, ?, ?, ?)";
         try (Connection conn = DbHelper.getConnection();
@@ -117,7 +149,6 @@ public class WasteDAO {
         return false;
     }
 
-    // SENİN GÜNCEL KODUN (Adres kontrolü - Dokunmadım)
     public boolean isReservationAllowed(String collectorEmail, int targetWasteId) {
         String sql = "SELECT COUNT(*) FROM collections c " +
                 "JOIN wastes w_active ON c.waste_id = w_active.waste_id " +
@@ -136,7 +167,6 @@ public class WasteDAO {
         return false;
     }
 
-    // ORTAK SORGULAMA METODU (Verileri Modele Çevirme)
     private List<Waste> getWastesByQuery(String sql, String param) {
         List<Waste> list = new ArrayList<>();
         try (Connection conn = DbHelper.getConnection();
@@ -149,11 +179,9 @@ public class WasteDAO {
                     try { ownerName = rs.getString("owner_name"); } catch(Exception ex) {}
                 }
 
-                // TARİH OKUMA
                 String dateVal = "";
                 try { dateVal = rs.getString("display_date"); } catch (Exception e) {}
 
-                // GERİ SAYIM HESAPLAMA (Saniye -> Saat/Dakika)
                 String countdown = "";
                 try {
                     long seconds = rs.getLong("seconds_left");
@@ -175,8 +203,8 @@ public class WasteDAO {
                         rs.getString("unit"),
                         rs.getString("status"),
                         ownerName,
-                        dateVal,    // YENİ
-                        countdown   // YENİ
+                        dateVal,
+                        countdown
                 ));
             }
         } catch (Exception e) { e.printStackTrace(); }
