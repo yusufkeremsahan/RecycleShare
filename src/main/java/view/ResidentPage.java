@@ -55,6 +55,8 @@ public class ResidentPage {
         // Yeşil Gradyan Arka Plan
         rootPane.setStyle("-fx-background-color: linear-gradient(to bottom right, #2E7D32, #81C784);");
 
+        stage.getIcons().add(new Image("file:logo4.png"));
+
         BorderPane mainLayout = new BorderPane();
         mainLayout.setTop(createHeader());
 
