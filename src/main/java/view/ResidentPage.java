@@ -548,12 +548,14 @@ public class ResidentPage {
         c1.setCellValueFactory(new PropertyValueFactory<>("name"));
         c1.setReorderable(false);
         c1.setResizable(false);
+        c1.setMinWidth(160);
 
         TableColumn<UserDAO.UserScore, Double> c2 = new TableColumn<>("Puan");
         c2.setCellValueFactory(new PropertyValueFactory<>("score"));
         c2.setReorderable(false);
         c2.setResizable(false);
-        c2.setStyle("-fx-alignment: CENTER-RIGHT;");
+        c2.setStyle("-fx-alignment: CENTER-LEFT;");
+        c2.setMinWidth(58);
 
         tableTop.getColumns().addAll(c1, c2);
         tableTop.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);

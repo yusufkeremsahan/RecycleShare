@@ -122,13 +122,23 @@ public class CollectorPage {
         Button btnRefresh = new Button("Yenile 🔄");
         btnRefresh.setStyle("-fx-background-color: #f5f5f5; -fx-text-fill: #333; -fx-border-color: #ddd; -fx-border-radius: 5; -fx-cursor: hand; -fx-padding: 10 20;");
 
+        // --- YENİ EKLENEN BUTON ---
+        Button btnAnalyze = new Button("Bölge Analizi 📊");
+        btnAnalyze.setStyle("-fx-background-color: #7B1FA2; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-cursor: hand; -fx-padding: 10 20;");
+
+        // Butona basınca pencere açsın
+        btnAnalyze.setOnAction(e -> showAnalysisDialog());
+        // --------------------------
+
         btnSearch.setOnAction(e -> {
             if (isViewingAvailable) table.setItems(FXCollections.observableArrayList(wasteDAO.searchWastesByDistrict(txtSearch.getText())));
             else showAlert("Bilgi", "Arama sadece 'Müsait Atıklar' listesinde çalışır.");
         });
+
         btnRefresh.setOnAction(e -> { txtSearch.clear(); refreshTable(); });
 
-        topRow.getChildren().addAll(txtSearch, btnSearch, btnRefresh);
+        // topRow'a butonu ekle
+        topRow.getChildren().addAll(txtSearch, btnSearch, btnRefresh, btnAnalyze);
 
         HBox tabRow = new HBox(0);
         tabRow.setAlignment(Pos.CENTER_LEFT);
@@ -293,4 +303,37 @@ public class CollectorPage {
     }
 
     private void showAlert(String t, String c) { Alert a = new Alert(Alert.AlertType.INFORMATION); a.setTitle(t); a.setContentText(c); a.showAndWait(); }
+    private void showAnalysisDialog() {
+        // 1. Veriyi WasteDAO'dan çek
+        String analysisText = wasteDAO.getDistrictAnalysis();
+
+        // 2. Pencere Oluştur
+        Stage dialog = new Stage();
+        dialog.initOwner(stage);
+        dialog.setTitle("İlçe Yoğunluk Analizi");
+
+        VBox root = new VBox(15);
+        root.setPadding(new Insets(20));
+        root.setStyle("-fx-background-color: white;");
+
+        Label lblTitle = new Label("📊 İlçe Bazlı Atık Yoğunluğu");
+        lblTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        lblTitle.setTextFill(Color.web("#7B1FA2")); // Mor renk
+
+        TextArea txtArea = new TextArea(analysisText);
+        txtArea.setEditable(false);
+        txtArea.setWrapText(true);
+        txtArea.setFont(Font.font("Monospaced", 14)); // Hizalama düzgün görünsün diye monospaced
+        VBox.setVgrow(txtArea, Priority.ALWAYS);
+
+        Button btnClose = new Button("Kapat");
+        btnClose.setStyle("-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-font-weight: bold;");
+        btnClose.setOnAction(e -> dialog.close());
+
+        root.getChildren().addAll(lblTitle, txtArea, btnClose);
+
+        Scene scene = new Scene(root, 400, 500);
+        dialog.setScene(scene);
+        dialog.show();
+    }
 }

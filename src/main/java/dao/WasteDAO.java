@@ -107,7 +107,7 @@ public class WasteDAO {
 
         String sql = "SELECT w.waste_id, c.category_name, w.district, w.full_location_text, w.amount, w.unit, w.status, u_owner.full_name AS owner_name, " +
                 "to_char(col.reserved_at, 'DD.MM.YYYY HH24:MI') as display_date, " +
-                "EXTRACT(EPOCH FROM (col.reserved_at + INTERVAL '24 hours' - NOW()))::INT as seconds_left " +
+                "EXTRACT(EPOCH FROM (col.reserved_at + INTERVAL '2 minutes' - NOW()))::INT as seconds_left " +
                 "FROM collections col " +
                 "JOIN wastes w ON col.waste_id = w.waste_id " +
                 "JOIN waste_categories c ON w.category_id = c.category_id " +
@@ -209,5 +209,24 @@ public class WasteDAO {
             }
         } catch (Exception e) { e.printStackTrace(); }
         return list;
+    }
+    // CURSOR KULLANAN FONKSİYONU ÇAĞIRMA (REQ 11 & 17)
+    // Bunu CollectorPage kullanacak
+    public String getDistrictAnalysis() {
+        String analysis = "";
+        String sql = "SELECT analyze_district_performance()"; // SQL'deki cursor'lı fonksiyon
+
+        try (Connection conn = DbHelper.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                analysis = rs.getString(1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            analysis = "Analiz verisi alınamadı.";
+        }
+        return analysis;
     }
 }
