@@ -47,20 +47,32 @@ public class UserDAO {
         }
     }
 
-    // LİDERLİK TABLOSU
+    // LİDERLİK TABLOSU İÇİN VERİ MODELİ
     public static class UserScore {
         private String name;
-        private double score; // DEĞİŞİKLİK: int -> double
+        private double score;
+        private boolean hasStar; // Eksik olan değişken eklendi
 
         public UserScore(String name, double score) {
             this.name = name;
             this.score = score;
+            this.hasStar = false; // Varsayılan değer
         }
 
         public String getName() { return name; }
         public double getScore() { return score; }
+
+        // Metod gövdeleri dolduruldu
+        public void setHasStar(boolean hasStar) {
+            this.hasStar = hasStar;
+        }
+
+        public boolean isHasStar() {
+            return hasStar;
+        }
     }
 
+    // ESKİ LİDERLİK METODU (Opsiyonel, durabilir)
     public List<UserScore> getTopUsers() {
         List<UserScore> list = new ArrayList<>();
         String sql = "SELECT full_name, score FROM users WHERE role = 'SAKIN' ORDER BY score DESC LIMIT 5";
@@ -70,8 +82,29 @@ public class UserDAO {
              ResultSet rs = stmt.executeQuery(sql)) {
 
             while(rs.next()) {
-                // DEĞİŞİKLİK: getInt yerine getDouble kullanıyoruz
                 list.add(new UserScore(rs.getString("full_name"), rs.getDouble("score")));
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        return list;
+    }
+
+    // YENİ: YILDIZLI LİDERLİK METODU
+    public List<UserScore> getTopUsersWithStars() {
+        List<UserScore> list = new ArrayList<>();
+
+        // HAVING kriterine göre oluşturduğumuz view_reliable_residents ile kontrol yapıyoruz
+        String sql = "SELECT u.full_name, u.score, " +
+                "EXISTS(SELECT 1 FROM view_reliable_residents v WHERE v.full_name = u.full_name) as has_star " +
+                "FROM users u WHERE u.role = 'SAKIN' ORDER BY u.score DESC LIMIT 5";
+
+        try (Connection conn = DbHelper.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while(rs.next()) {
+                UserScore us = new UserScore(rs.getString("full_name"), rs.getDouble("score"));
+                us.setHasStar(rs.getBoolean("has_star"));
+                list.add(us);
             }
         } catch (Exception e) { e.printStackTrace(); }
         return list;

@@ -356,14 +356,19 @@ UNION
 SELECT full_name, role, 'Toplayıcı' as activity_type FROM users u 
 WHERE EXISTS (SELECT 1 FROM collections c WHERE c.collector_id = u.user_id);
 
--- (REQ 10: Aggregate ve Having Kullanımı)
--- Ortalaması 4.0 ve üzeri olan "Yıldız" toplayıcılar
-CREATE VIEW view_high_impact_users AS
-SELECT u.full_name, COUNT(c.collection_id) as total_jobs, AVG(c.rating_avg) as average_rating
+-- (REQ 10: HAVING Kullanımı - Yıldızlı Üye Kriteri)
+DROP VIEW IF EXISTS view_reliable_residents CASCADE;
+
+CREATE OR REPLACE VIEW view_reliable_residents AS
+SELECT
+    u.user_id,
+    u.full_name,
+    COUNT(w.waste_id) as total_completed
 FROM users u
-JOIN collections c ON u.user_id = c.collector_id
-GROUP BY u.full_name
-HAVING AVG(c.rating_avg) >= 4.0;
+         JOIN wastes w ON u.user_id = w.owner_id
+WHERE w.status = 'TAMAMLANDI'
+GROUP BY u.user_id, u.full_name
+HAVING COUNT(w.waste_id) >= 5; -- SENİN İSTEDİĞİN KRİTER: 5 ve üzeri
 
 
 -- =============================================================
