@@ -491,28 +491,62 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- FONKSİYON 2: İşlem Tamamlama (Arayüzden tetiklenir)
+-- FONKSİYON 2: İşlem Tamamlama (MİNİMUM PUAN KURALI KALDIRILDI)
 CREATE OR REPLACE FUNCTION complete_waste_process(
     p_waste_id INTEGER, p_clean INTEGER, p_acc INTEGER, p_punc INTEGER
 ) RETURNS BOOLEAN AS $$
 DECLARE
-    v_owner_id INTEGER; v_cat_id INTEGER; v_amount NUMERIC; v_unit VARCHAR(20);
-    v_factor NUMERIC; v_real_kg NUMERIC; v_points NUMERIC;
+    v_owner_id INTEGER;
+    v_cat_id INTEGER;
+    v_amount NUMERIC;
+    v_unit VARCHAR(20);
+    v_c_factor NUMERIC;     
+    v_ukg_factor NUMERIC;   
+    v_real_kg NUMERIC;      
+    v_points NUMERIC;
 BEGIN
-    UPDATE collections SET rating_cleanliness = p_clean, rating_accuracy = p_acc, rating_punctuality = p_punc, 
-        rating_avg = (p_clean+p_acc+p_punc)/3, collection_date = CURRENT_TIMESTAMP WHERE waste_id = p_waste_id;
+    -- 1. Koleksiyon tablosunu güncelle (Puanlama)
+    UPDATE collections SET 
+        rating_cleanliness = p_clean, 
+        rating_accuracy = p_acc, 
+        rating_punctuality = p_punc, 
+        rating_avg = (p_clean+p_acc+p_punc)/3, 
+        collection_date = CURRENT_TIMESTAMP 
+    WHERE waste_id = p_waste_id;
 
-    SELECT owner_id, category_id, amount, unit INTO v_owner_id, v_cat_id, v_amount, v_unit FROM wastes WHERE waste_id = p_waste_id;
-    SELECT carbon_factor INTO v_factor FROM waste_categories WHERE category_id = v_cat_id;
+    -- 2. Bilgileri Çek
+    SELECT 
+        w.owner_id, w.category_id, w.amount, w.unit, 
+        c.carbon_factor, c.unit_to_kg_factor 
+    INTO 
+        v_owner_id, v_cat_id, v_amount, v_unit, 
+        v_c_factor, v_ukg_factor
+    FROM wastes w
+    JOIN waste_categories c ON w.category_id = c.category_id
+    WHERE w.waste_id = p_waste_id;
     
-    -- Basit puan hesabı
-    v_points := v_amount * v_factor; 
-    IF v_points < 1 THEN v_points := 1; END IF;
+    -- 3. KG Çevrimi
+    IF v_unit = 'KG' THEN 
+        v_real_kg := v_amount;
+    ELSE 
+        v_real_kg := v_amount * v_ukg_factor;
+    END IF;
 
+    -- 4. Puanı Hesapla (Net Değer)
+    v_points := v_real_kg * v_c_factor; 
+
+    -- [SİLİNEN KISIM BURASI]: Artık puan 0.02 ise 0.02 olarak işlenecek.
+    -- IF v_points < 0.1 THEN v_points := 0.1; END IF; 
+
+    -- 5. Kullanıcıya puanı ekle
     UPDATE users SET score = score + v_points WHERE user_id = v_owner_id;
+    
+    -- 6. Durumu Güncelle
     UPDATE wastes SET status = 'TAMAMLANDI' WHERE waste_id = p_waste_id;
+    
     RETURN TRUE;
-EXCEPTION WHEN OTHERS THEN RETURN FALSE;
+EXCEPTION WHEN OTHERS THEN 
+    RETURN FALSE;
 END;
 $$ LANGUAGE plpgsql;
 
