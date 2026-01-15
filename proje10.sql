@@ -347,14 +347,14 @@ JOIN waste_categories c ON w.category_id = c.category_id
 JOIN users u ON w.owner_id = u.user_id
 WHERE w.status = 'MUSAIT';
 
--- (REQ 9: Union Kullanımı - Tüm Katılımcılar)
--- Hem atık verenleri hem de toplayanları tek listede birleştirir
-CREATE VIEW view_all_participants AS
-SELECT full_name, role, 'Atık Sahibi' as activity_type FROM users u 
-WHERE EXISTS (SELECT 1 FROM wastes w WHERE w.owner_id = u.user_id)
-UNION
-SELECT full_name, role, 'Toplayıcı' as activity_type FROM users u 
-WHERE EXISTS (SELECT 1 FROM collections c WHERE c.collector_id = u.user_id);
+-- (REQ 9: EXCEPT Kullanımı - Tüm Katılımcılar)
+
+CREATE OR REPLACE VIEW view_unused_categories AS
+SELECT category_name FROM waste_categories
+EXCEPT
+SELECT c.category_name 
+FROM wastes w 
+JOIN waste_categories c ON w.category_id = c.category_id;
 
 -- (REQ 10: HAVING Kullanımı - Yıldızlı Üye Kriteri)
 DROP VIEW IF EXISTS view_reliable_residents CASCADE;

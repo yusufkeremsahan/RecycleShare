@@ -162,9 +162,32 @@ public class ResidentPage {
         txtAddrTitle = new TextField(); txtAddrTitle.setPromptText("Adres Başlığı"); styleField(txtAddrTitle);
         txtAddrTitle.setVisible(false); txtAddrTitle.managedProperty().bind(txtAddrTitle.visibleProperty());
 
-        cmbCategory = new ComboBox<>(); cmbCategory.setPromptText("Kategori Seçiniz");
+        // YENİ HALİ (createFormCard metodunun içine, eski cmbCategory yerine):
+
+        cmbCategory = new ComboBox<>();
+        cmbCategory.setPromptText("Kategori Seçiniz");
+        cmbCategory.setMaxWidth(Double.MAX_VALUE); // Genişlik ayarı
         try { cmbCategory.getItems().addAll(wasteDAO.getCategories()); } catch (Exception ex) {}
 
+// --- YENİ EKLENEN BUTON (EXCEPT SORGUSUNU ÇAĞIRIR) ---
+        Button btnCheckEmpty = new Button("?");
+        btnCheckEmpty.setTooltip(new Tooltip("Hiç ilan açılmamış kategorileri gör"));
+        btnCheckEmpty.setStyle("-fx-background-color: #0288D1; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;");
+
+        btnCheckEmpty.setOnAction(e -> {
+            java.util.List<String> unused = wasteDAO.getUnusedCategories();
+            if (unused.isEmpty()) {
+                new Alert(Alert.AlertType.INFORMATION, "Harika! Sistemdeki tüm kategorilerde aktif atık paylaşımı yapılmış.").show();
+            } else {
+                String msg = "Şu kategorilerde henüz hiç atık paylaşılmadı.\nİlk paylaşan sen ol!\n\n";
+                for (String s : unused) msg += "• " + s + "\n";
+                new Alert(Alert.AlertType.INFORMATION, msg).show();
+            }
+        });
+
+// Kategori ve Butonu yan yana koymak için HBox
+        HBox catBox = new HBox(10, cmbCategory, btnCheckEmpty);
+        HBox.setHgrow(cmbCategory, Priority.ALWAYS);
         txtAmount = new TextField(); txtAmount.setPromptText("Miktar"); styleField(txtAmount);
         cmbUnit = new ComboBox<>(); cmbUnit.setPromptText("Birim"); cmbUnit.setPrefWidth(100);
         HBox rowAmt = new HBox(10, txtAmount, cmbUnit);
@@ -175,8 +198,14 @@ public class ResidentPage {
 
         setupFormEvents(btnAdd, btnDeleteAddr, btnReport);
 
-        content.getChildren().addAll(new Label("Teslimat Adresi"), addrBox, txtStreet, rowLoc, cmbNeigh, rowBuild, txtDirections, chkSave, txtAddrTitle,
-                new Separator(), new Label("Atık Bilgileri"), cmbCategory, rowAmt, btnAdd, lblMsg, btnReport);
+        // createFormCard metodunun en altındaki ekleme kısmı şöyle olmalı:
+        content.getChildren().addAll(
+                new Label("Teslimat Adresi"), addrBox, txtStreet, rowLoc, cmbNeigh, rowBuild, txtDirections, chkSave, txtAddrTitle,
+                new Separator(),
+                new Label("Atık Bilgileri"),
+                catBox, // BURASI DEĞİŞTİ (Eskiden cmbCategory idi)
+                rowAmt, btnAdd, lblMsg, btnReport
+        );
 
         mainCard.getChildren().addAll(lblTitle, content);
         return mainCard;
@@ -262,23 +291,66 @@ public class ResidentPage {
 
     private void handleAddWaste() {
         try {
+            // 1. Arayüzden verileri çekelim
             String cat = cmbCategory.getValue();
+            String unit = cmbUnit.getValue();
+            String amountText = txtAmount.getText().trim();
+
             String city = cmbCity.getValue();
             String dist = cmbDistrict.getValue();
             String neigh = cmbNeigh.getValue();
-            String fullLoc = String.format("%s Mah. %s No:%s D:%s %s/%s", neigh, txtStreet.getText(), txtBuildNo.getText(), txtDoor.getText(), dist, city);
+            String street = txtStreet.getText().trim();
+            String buildNo = txtBuildNo.getText().trim();
+            String door = txtDoor.getText().trim();
 
-            if (chkSave.isSelected() && !txtAddrTitle.getText().isEmpty()) {
-                addressDAO.saveAddress(userEmail, txtAddrTitle.getText(), city, dist, neigh, txtStreet.getText(), txtBuildNo.getText(), txtFloor.getText(), txtDoor.getText(), txtDirections.getText());
+            // 2. VALIDASYON: Adres veya Atık bilgileri boş mu?
+            // Şehir, İlçe, Mahalle, Cadde, Bina No veya Daire No boşsa işlemi durdur.
+            if (city == null || dist == null || neigh == null ||
+                    street.isEmpty() || buildNo.isEmpty() || door.isEmpty() ||
+                    cat == null || unit == null || amountText.isEmpty()) {
+
+                lblMsg.setText("Hata: Lütfen adres ve atık bilgilerini eksiksiz doldurun!");
+                lblMsg.setTextFill(Color.RED);
+                return; // <--- KRİTİK NOKTA: Burası işlemi durdurur.
+            }
+
+            // 3. Adresi Kaydetme İsteği Varsa (Opsiyonel)
+            if (chkSave.isSelected()) {
+                if (txtAddrTitle.getText().trim().isEmpty()) {
+                    lblMsg.setText("Hata: Adresi kaydetmek için bir başlık girmelisiniz.");
+                    lblMsg.setTextFill(Color.RED);
+                    return;
+                }
+                addressDAO.saveAddress(userEmail, txtAddrTitle.getText(), city, dist, neigh, street, buildNo, txtFloor.getText(), door, txtDirections.getText());
                 refreshAddressCombo();
             }
 
-            if (wasteDAO.addWaste(userEmail, cat, city, dist, fullLoc, Double.parseDouble(txtAmount.getText()), cmbUnit.getValue())) {
-                lblMsg.setText("Başarılı!"); lblMsg.setTextFill(Color.GREEN); refreshTable();
-            }
-        } catch (Exception ex) { lblMsg.setText("Hata: Bilgileri kontrol edin."); lblMsg.setTextFill(Color.RED); }
-    }
+            // 4. Açık Adres Metnini Oluştur
+            String fullLoc = String.format("%s Mah. %s No:%s D:%s %s/%s", neigh, street, buildNo, door, dist, city);
 
+            // 5. Veritabanına Ekle
+            if (wasteDAO.addWaste(userEmail, cat, city, dist, fullLoc, Double.parseDouble(amountText), unit)) {
+                lblMsg.setText("Sipariş Başarıyla Oluşturuldu!");
+                lblMsg.setTextFill(Color.GREEN);
+                refreshTable();
+
+                // Formu temizle ki yanlışlıkla tekrar basılmasın
+                txtAmount.clear();
+                // İstersen clearAddressFields(); metodunu da buraya ekleyebilirsin.
+            } else {
+                lblMsg.setText("Veritabanı hatası oluştu.");
+                lblMsg.setTextFill(Color.RED);
+            }
+
+        } catch (NumberFormatException e) {
+            lblMsg.setText("Hata: Miktar alanına sadece sayı giriniz.");
+            lblMsg.setTextFill(Color.RED);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            lblMsg.setText("Beklenmedik bir hata oluştu.");
+            lblMsg.setTextFill(Color.RED);
+        }
+    }
     private VBox createTableCard() {
         VBox card = new VBox(15); card.setPadding(new Insets(25)); styleCard(card);
         Label lbl = new Label("Geçmiş İşlemlerim"); lbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));

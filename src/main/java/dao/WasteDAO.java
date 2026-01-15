@@ -229,4 +229,24 @@ public class WasteDAO {
         }
         return analysis;
     }
+    // WasteDAO.java dosyasının en altına, son parantezden önce ekle:
+
+    public List<String> getUnusedCategories() {
+        List<String> list = new ArrayList<>();
+        // HOCANIN İSTEDİĞİ EXCEPT SORGUSU BURADA
+        String sql = "SELECT category_name FROM waste_categories " +
+                "EXCEPT " +
+                "SELECT c.category_name FROM wastes w " +
+                "JOIN waste_categories c ON w.category_id = c.category_id";
+
+        try (Connection conn = DbHelper.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                list.add(rs.getString("category_name"));
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        return list;
+    }
 }

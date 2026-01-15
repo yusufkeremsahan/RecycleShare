@@ -72,22 +72,6 @@ public class UserDAO {
         }
     }
 
-    // ESKİ LİDERLİK METODU (Opsiyonel, durabilir)
-    public List<UserScore> getTopUsers() {
-        List<UserScore> list = new ArrayList<>();
-        String sql = "SELECT full_name, score FROM users WHERE role = 'SAKIN' ORDER BY score DESC LIMIT 5";
-
-        try (Connection conn = DbHelper.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
-            while(rs.next()) {
-                list.add(new UserScore(rs.getString("full_name"), rs.getDouble("score")));
-            }
-        } catch (Exception e) { e.printStackTrace(); }
-        return list;
-    }
-
     // YENİ: YILDIZLI LİDERLİK METODU
     public List<UserScore> getTopUsersWithStars() {
         List<UserScore> list = new ArrayList<>();
