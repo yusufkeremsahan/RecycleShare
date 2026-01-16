@@ -200,14 +200,14 @@ public class CollectorPage {
         isViewingAvailable = showAvailable;
 
         if (showAvailable) {
-            btnAction.setText("SEÇİLEN GÖREVİ AL 🚛");
+            btnAction.setText("SEÇİLEN GÖREVİ AL");
             stylePrimaryButton(btnAction);
             tglAvailable.setSelected(true);
 
             table.getColumns().remove(cStat);
             table.getColumns().remove(cTime);
         } else {
-            btnAction.setText("TESLİM ALINDI & PUANLA ✅");
+            btnAction.setText("TESLİM ALINDI & PUANLA");
             btnAction.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-size: 16px; -fx-padding: 15;");
             tglReserved.setSelected(true);
 
@@ -300,7 +300,7 @@ public class CollectorPage {
         root.setPadding(new Insets(20));
         root.setStyle("-fx-background-color: white;");
 
-        Label lblTitle = new Label("📊 İlçe Bazlı Atık Yoğunluğu");
+        Label lblTitle = new Label("İlçe Bazlı Atık Yoğunluğu");
         lblTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
         lblTitle.setTextFill(Color.web("#7B1FA2"));
 
