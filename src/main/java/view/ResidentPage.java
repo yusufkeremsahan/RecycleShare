@@ -116,7 +116,35 @@ public class ResidentPage {
             try { new LoginApp().start(new Stage()); } catch (Exception ex) { ex.printStackTrace(); }
         });
 
-        header.getChildren().addAll(logoView, titleBox, spacer, btnLogout);
+        // ResidentPage.java -> createHeader() içine:
+
+        Button btnNotify = new Button("🔔");
+        btnNotify.setStyle("-fx-background-color: #FFC107; -fx-text-fill: black; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 20;");
+        btnNotify.setTooltip(new Tooltip("Bildirimler"));
+
+        btnNotify.setOnAction(e -> {
+            // 1. Veritabanından mesajları çek
+            java.util.List<String> notes = userDAO.getUserNotifications(userEmail);
+
+            // 2. Ekranda Göster
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Bildirim Kutusu");
+            alert.setHeaderText("Son Olaylar");
+
+            if (notes.isEmpty()) {
+                alert.setContentText("📭 Henüz yeni bir bildiriminiz yok.");
+            } else {
+                StringBuilder sb = new StringBuilder();
+                for (String msg : notes) {
+                    sb.append(msg).append("\n\n");
+                }
+                alert.setContentText(sb.toString());
+            }
+            alert.showAndWait();
+        });
+
+        header.getChildren().addAll(logoView, titleBox, spacer, btnNotify, btnLogout);
+
         return header;
     }
 
@@ -425,8 +453,23 @@ public class ResidentPage {
     }
 
     private void clearAddressFields() {
-        txtStreet.clear(); txtBuildNo.clear(); txtFloor.clear(); txtDoor.clear(); txtDirections.clear(); txtAddrTitle.clear();
-        chkSave.setSelected(false); cmbCity.getSelectionModel().clearSelection(); cmbDistrict.setDisable(true);
+        txtStreet.clear();
+        txtBuildNo.clear();
+        txtFloor.clear();
+        txtDoor.clear();
+        txtDirections.clear();
+        txtAddrTitle.clear();
+        chkSave.setSelected(false);
+
+        cmbCity.getSelectionModel().clearSelection();
+
+        cmbDistrict.getSelectionModel().clearSelection();
+        cmbDistrict.getItems().clear();
+        cmbDistrict.setDisable(true);
+
+        cmbNeigh.getSelectionModel().clearSelection();
+        cmbNeigh.getItems().clear();
+        cmbNeigh.setDisable(true);
     }
 
     private void fillForm(AddressDAO.AddressDetails d) {

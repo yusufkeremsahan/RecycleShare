@@ -111,4 +111,27 @@ public class UserDAO {
         } catch (Exception e) { e.printStackTrace(); }
         return report;
     }
+
+    // UserDAO.java içine ekle:
+
+    // BİLDİRİMLERİ OKUMA METODU (Posta Kutusuna Bak)
+    public List<String> getUserNotifications(String email) {
+        List<String> messages = new ArrayList<>();
+        String sql = "SELECT message, to_char(created_at, 'DD.MM HH24:MI') as tarih " +
+                "FROM notifications " +
+                "WHERE user_id = (SELECT user_id FROM users WHERE email = ?) " +
+                "ORDER BY created_at DESC LIMIT 10";
+
+        try (Connection conn = DbHelper.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, email);
+            ResultSet rs = pstmt.executeQuery();
+
+            while(rs.next()) {
+                messages.add(rs.getString("tarih") + " - " + rs.getString("message"));
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        return messages;
+    }
 }

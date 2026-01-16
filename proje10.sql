@@ -1,40 +1,44 @@
--- =============================================================
--- PROJE 10 - FINAL VERSION (ALL REQUIREMENTS MET) 🚀
--- =============================================================
 
--- 1. TEMİZLİK (Eski tabloları ve objeleri temizle)
+-- 1. TEMİZLİK (Her şeyi sıfırla)
 DROP VIEW IF EXISTS available_wastes_view CASCADE;
-DROP VIEW IF EXISTS view_high_impact_users CASCADE; -- (REQ 10: Having)
-DROP VIEW IF EXISTS view_all_participants CASCADE;  -- (REQ 9: Union)
+DROP VIEW IF EXISTS view_reliable_residents CASCADE;
+DROP VIEW IF EXISTS view_unused_categories CASCADE;
+DROP VIEW IF EXISTS view_all_participants CASCADE;
+
+DROP TABLE IF EXISTS notifications CASCADE;
 DROP TABLE IF EXISTS collections CASCADE;
 DROP TABLE IF EXISTS wastes CASCADE;
 DROP TABLE IF EXISTS addresses CASCADE;
-DROP TABLE IF EXISTS waste_process_logs CASCADE;    -- (REQ 8: Sequence Tablosu)
+DROP TABLE IF EXISTS waste_process_logs CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS waste_categories CASCADE;
 DROP TABLE IF EXISTS tr_neighborhoods CASCADE;
 DROP TABLE IF EXISTS tr_districts CASCADE;
 
-DROP SEQUENCE IF EXISTS seq_log_id;                 -- (REQ 8: Sequence)
+DROP SEQUENCE IF EXISTS seq_log_id;
+DROP SEQUENCE IF EXISTS seq_notification_id;
 
 DROP FUNCTION IF EXISTS get_personal_impact_report CASCADE;
 DROP FUNCTION IF EXISTS complete_waste_process CASCADE;
-DROP FUNCTION IF EXISTS analyze_district_performance CASCADE; -- (REQ 11: Cursor func)
-DROP FUNCTION IF EXISTS func_log_waste_status_change CASCADE; -- (REQ 12: Trigger func)
+DROP FUNCTION IF EXISTS analyze_district_performance CASCADE;
+DROP FUNCTION IF EXISTS func_notify_waste_status CASCADE;
+DROP FUNCTION IF EXISTS func_prevent_score_hack CASCADE;
 
 
 -- =============================================================
--- 2. SEQUENCE (REQ 8: Manuel Sequence Oluşturma)
+-- 2. SEQUENCE (REQ 8: Sıra Sayacı)
 -- =============================================================
-CREATE SEQUENCE seq_log_id
+-- Bildirim ID'lerini üretmek için manuel sequence
+CREATE SEQUENCE seq_notification_id
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
     NO MAXVALUE
     CACHE 1;
 
+
 -- =============================================================
--- 3. LOKASYON TABLOLARI
+-- 3. LOKASYON TABLOLARI (Full Veri)
 -- =============================================================
 CREATE TABLE tr_districts (
     district_id SERIAL PRIMARY KEY,
@@ -53,7 +57,7 @@ INSERT INTO tr_districts (district_name) VALUES
 ('Şişli'), ('Maltepe'), ('Kartal'), ('Pendik'), ('Ümraniye'),
 ('Ataşehir'), ('Beyoğlu'), ('Bakırköy'), ('Zeytinburnu'), ('Bağcılar');
 
--- MAHALLELER (Her ilçe için 10 adet örnek)
+-- MAHALLELER (Her ilçe için veriler geri yüklendi)
 -- 1. Kadıköy
 INSERT INTO tr_neighborhoods (district_id, neighborhood_name) VALUES 
 ((SELECT district_id FROM tr_districts WHERE district_name='Kadıköy'), 'Caferağa'),
@@ -249,6 +253,7 @@ INSERT INTO tr_neighborhoods (district_id, neighborhood_name) VALUES
 ((SELECT district_id FROM tr_districts WHERE district_name='Bağcılar'), 'Kirazlı'),
 ((SELECT district_id FROM tr_districts WHERE district_name='Bağcılar'), 'Mahmutbey');
 
+
 -- =============================================================
 -- 4. KATEGORİLER
 -- =============================================================
@@ -267,21 +272,19 @@ INSERT INTO waste_categories (category_name, carbon_factor, unit_to_kg_factor) V
 
 
 -- =============================================================
--- 5. ANA TABLOLAR (REQ 3: Check Constraintler Eklendi)
+-- 5. ANA TABLOLAR (REQ 3: Check Constraint)
 -- =============================================================
 
--- KULLANICILAR
 CREATE TABLE users (
     user_id SERIAL PRIMARY KEY,
     email VARCHAR(100) UNIQUE NOT NULL,
     password VARCHAR(50) NOT NULL,
     full_name VARCHAR(100),
     role VARCHAR(20), 
-    score NUMERIC(10,2) DEFAULT 0.00 CHECK (score >= 0), -- (REQ 3: Sayı kısıtı)
+    score NUMERIC(10,2) DEFAULT 0.00 CHECK (score >= 0),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ADRESLER
 CREATE TABLE addresses (
     address_id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
@@ -292,7 +295,6 @@ CREATE TABLE addresses (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ATIKLAR
 CREATE TABLE wastes (
     waste_id SERIAL PRIMARY KEY,
     owner_id INTEGER REFERENCES users(user_id) NOT NULL,
@@ -300,16 +302,15 @@ CREATE TABLE wastes (
     city VARCHAR(50) DEFAULT 'İstanbul', 
     district VARCHAR(50), 
     full_location_text TEXT, 
-    amount NUMERIC(10,2) CHECK (amount > 0), -- (REQ 3: Miktar 0'dan büyük olmalı)
+    amount NUMERIC(10,2) CHECK (amount > 0),
     unit VARCHAR(10),
     status VARCHAR(20) DEFAULT 'MUSAIT',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- (REQ 7: Index Oluşturma - Arama Performansı İçin)
+-- (REQ 7: Index Oluşturma)
 CREATE INDEX idx_waste_location ON wastes(full_location_text);
 
--- KOLEKSİYONLAR
 CREATE TABLE collections (
     collection_id SERIAL PRIMARY KEY,
     waste_id INTEGER REFERENCES wastes(waste_id),
@@ -322,21 +323,22 @@ CREATE TABLE collections (
     collection_date TIMESTAMP
 );
 
--- LOG TABLOSU (REQ 8: Sequence kullanımı için)
-CREATE TABLE waste_process_logs (
-    log_id INTEGER PRIMARY KEY DEFAULT nextval('seq_log_id'), -- Sequence burada kullanılıyor
-    waste_id INTEGER,
-    old_status VARCHAR(20),
-    new_status VARCHAR(20),
-    change_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- (REQ 8 & 12: YENİ BİLDİRİM TABLOSU)
+-- Log tablosu yerine bu kullanılıyor. Sequence buradan besleniyor.
+CREATE TABLE notifications (
+    notification_id INTEGER PRIMARY KEY DEFAULT nextval('seq_notification_id'), -- SEQUENCE
+    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 
 -- =============================================================
--- 6. VIEWLAR (REQ 9 & 10: Union ve Aggregate/Having)
+-- 6. VIEWLAR (REQ 9 & 10: View + Except + Having)
 -- =============================================================
 
--- (REQ 6: Mevcut View - Arayüz için gerekli)
+-- (REQ 6: Temel View)
 CREATE OR REPLACE VIEW available_wastes_view AS
 SELECT 
     w.waste_id, c.category_name, w.city, w.district, w.full_location_text,
@@ -347,8 +349,7 @@ JOIN waste_categories c ON w.category_id = c.category_id
 JOIN users u ON w.owner_id = u.user_id
 WHERE w.status = 'MUSAIT';
 
--- (REQ 9: EXCEPT Kullanımı - Tüm Katılımcılar)
-
+-- (REQ 9: EXCEPT - Hiç kullanılmayan kategoriler)
 CREATE OR REPLACE VIEW view_unused_categories AS
 SELECT category_name FROM waste_categories
 EXCEPT
@@ -356,26 +357,22 @@ SELECT c.category_name
 FROM wastes w 
 JOIN waste_categories c ON w.category_id = c.category_id;
 
--- (REQ 10: HAVING Kullanımı - Yıldızlı Üye Kriteri)
-DROP VIEW IF EXISTS view_reliable_residents CASCADE;
-
+-- (REQ 10: HAVING - Güvenilir Kullanıcılar)
 CREATE OR REPLACE VIEW view_reliable_residents AS
 SELECT
     u.user_id,
     u.full_name,
     COUNT(w.waste_id) as total_completed
 FROM users u
-         JOIN wastes w ON u.user_id = w.owner_id
+JOIN wastes w ON u.user_id = w.owner_id
 WHERE w.status = 'TAMAMLANDI'
 GROUP BY u.user_id, u.full_name
-HAVING COUNT(w.waste_id) >= 5; -- SENİN İSTEDİĞİN KRİTER: 5 ve üzeri
+HAVING COUNT(w.waste_id) >= 5;
 
 
 -- =============================================================
--- 7. FONKSİYONLAR (REQ 11: 3 Fonksiyon, Record ve Cursor)
+-- 7. FONKSİYONLAR (REQ 11: Cursor, Record, Params)
 -- =============================================================
-
-
 
 -- HEM CURSOR KULLANAN HEM DE DETAYLI RAPOR VEREN FONKSİYON
 -- Önce eski fonksiyonu temizliyoruz
@@ -491,145 +488,113 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- FONKSİYON 2: İşlem Tamamlama (MİNİMUM PUAN KURALI KALDIRILDI)
+
+-- FONKSİYON 2: İşlem Tamamlama
 CREATE OR REPLACE FUNCTION complete_waste_process(
     p_waste_id INTEGER, p_clean INTEGER, p_acc INTEGER, p_punc INTEGER
 ) RETURNS BOOLEAN AS $$
 DECLARE
     v_owner_id INTEGER;
-    v_cat_id INTEGER;
-    v_amount NUMERIC;
     v_unit VARCHAR(20);
-    v_c_factor NUMERIC;     
-    v_ukg_factor NUMERIC;   
-    v_real_kg NUMERIC;      
+    v_amount NUMERIC;
     v_points NUMERIC;
+    v_kg_factor NUMERIC;
+    v_carbon NUMERIC;
 BEGIN
-    -- 1. Koleksiyon tablosunu güncelle (Puanlama)
-    UPDATE collections SET 
-        rating_cleanliness = p_clean, 
-        rating_accuracy = p_acc, 
-        rating_punctuality = p_punc, 
-        rating_avg = (p_clean+p_acc+p_punc)/3, 
+	UPDATE collections 
+    SET rating_cleanliness = p_clean,
+        rating_accuracy = p_acc,
+        rating_punctuality = p_punc,
+        rating_avg = (p_clean + p_acc + p_punc) / 3, 
         collection_date = CURRENT_TIMESTAMP 
-    WHERE waste_id = p_waste_id;
-
-    -- 2. Bilgileri Çek
-    SELECT 
-        w.owner_id, w.category_id, w.amount, w.unit, 
-        c.carbon_factor, c.unit_to_kg_factor 
-    INTO 
-        v_owner_id, v_cat_id, v_amount, v_unit, 
-        v_c_factor, v_ukg_factor
-    FROM wastes w
-    JOIN waste_categories c ON w.category_id = c.category_id
-    WHERE w.waste_id = p_waste_id;
+    WHERE waste_id = p_waste_id;    
+    SELECT w.owner_id, w.amount, w.unit, c.carbon_factor, c.unit_to_kg_factor
+    INTO v_owner_id, v_amount, v_unit, v_carbon, v_kg_factor
+    FROM wastes w JOIN waste_categories c ON w.category_id = c.category_id WHERE w.waste_id = p_waste_id;
     
-    -- 3. KG Çevrimi
-    IF v_unit = 'KG' THEN 
-        v_real_kg := v_amount;
-    ELSE 
-        v_real_kg := v_amount * v_ukg_factor;
+    -- Puan hesabı
+    IF v_unit = 'KG' THEN v_points := v_amount * v_carbon;
+    ELSE v_points := (v_amount * v_kg_factor) * v_carbon;
     END IF;
-
-    -- 4. Puanı Hesapla (Net Değer)
-    v_points := v_real_kg * v_c_factor; 
-
-    -- [SİLİNEN KISIM BURASI]: Artık puan 0.02 ise 0.02 olarak işlenecek.
-    -- IF v_points < 0.1 THEN v_points := 0.1; END IF; 
-
-    -- 5. Kullanıcıya puanı ekle
-    UPDATE users SET score = score + v_points WHERE user_id = v_owner_id;
     
-    -- 6. Durumu Güncelle
+    UPDATE users SET score = score + v_points WHERE user_id = v_owner_id;
     UPDATE wastes SET status = 'TAMAMLANDI' WHERE waste_id = p_waste_id;
     
     RETURN TRUE;
-EXCEPTION WHEN OTHERS THEN 
-    RETURN FALSE;
+EXCEPTION WHEN OTHERS THEN RETURN FALSE;
 END;
 $$ LANGUAGE plpgsql;
 
--- FONKSİYON 3: Bölgesel Analiz (REQ 11: EXPLICIT CURSOR KULLANIMI)
--- Hoca "Cursor nerde?" derse burayı göster.
+-- FONKSİYON 3: Bölgesel Analiz (2. Cursor Örneği)
 CREATE OR REPLACE FUNCTION analyze_district_performance()
 RETURNS TEXT AS $$
 DECLARE
-    -- Explicit Cursor Tanımı
     cur_districts CURSOR FOR SELECT district_name FROM tr_districts;
-    
     v_dist_name VARCHAR(50);
     v_waste_count INTEGER;
-    v_result TEXT := '--- İLÇE BAZLI ATIK RAPORU ---' || E'\n';
+    v_result TEXT := '--- İLÇE RAPORU ---' || E'\n';
 BEGIN
-    -- Cursor'ı Aç
     OPEN cur_districts;
-
     LOOP
-        -- Satır satır oku
         FETCH cur_districts INTO v_dist_name;
-        EXIT WHEN NOT FOUND; -- Veri bitince çık
-
-        -- Her ilçe için hesaplama yap
+        EXIT WHEN NOT FOUND;
         SELECT COUNT(*) INTO v_waste_count FROM wastes WHERE district = v_dist_name;
-
-        v_result := v_result || '📍 ' || v_dist_name || ': ' || v_waste_count || ' adet ilan.' || E'\n';
+        v_result := v_result || '📍 ' || v_dist_name || ': ' || v_waste_count || ' ilan.' || E'\n';
     END LOOP;
-
-    -- Cursor'ı Kapat
     CLOSE cur_districts;
-    
     RETURN v_result;
 END;
 $$ LANGUAGE plpgsql;
 
 
 -- =============================================================
--- 8. TRIGGERLAR (REQ 12: 2 Adet Trigger)
+-- 8. TRIGGERLAR (REQ 12: 2 Trigger)
 -- =============================================================
 
--- TRIGGER FUNCTION: Atık Durumu Değişince Log Al
-CREATE OR REPLACE FUNCTION func_log_waste_status_change()
+-- TRIGGER 1: Bildirim Gönderici (Atık Durumu Değişince)
+CREATE OR REPLACE FUNCTION func_notify_waste_status()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_owner_id INTEGER;
+    v_cat_name VARCHAR(50);
 BEGIN
     IF OLD.status <> NEW.status THEN
-        -- Sequence kullanımı burada devreye giriyor (log_id otomatik artar)
-        INSERT INTO waste_process_logs (waste_id, old_status, new_status)
-        VALUES (NEW.waste_id, OLD.status, NEW.status);
+        SELECT owner_id, c.category_name INTO v_owner_id, v_cat_name
+        FROM wastes w JOIN waste_categories c ON w.category_id = c.category_id WHERE w.waste_id = NEW.waste_id;
+
+        IF NEW.status = 'REZERVEYE_ALINDI' THEN
+            INSERT INTO notifications (user_id, message) VALUES (v_owner_id, '🔔 ' || v_cat_name || ' atığınız rezerve edildi!');
+        ELSIF NEW.status = 'TAMAMLANDI' THEN
+            INSERT INTO notifications (user_id, message) VALUES (v_owner_id, '✅ ' || v_cat_name || ' işlemi tamamlandı.');
+        END IF;
     END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- TRIGGER 1: Durum Değişikliği Tetikleyicisi
-CREATE TRIGGER trg_waste_status_change
+CREATE TRIGGER trg_waste_notification
 AFTER UPDATE ON wastes
-FOR EACH ROW
-EXECUTE FUNCTION func_log_waste_status_change();
+FOR EACH ROW EXECUTE FUNCTION func_notify_waste_status();
 
--- TRIGGER FUNCTION 2: Puan Kontrolü
+-- TRIGGER 2: Puan Güvenliği (Hile Önleme)
 CREATE OR REPLACE FUNCTION func_prevent_score_hack()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Eğer skor aşırı yüksek bir zıplama yaparsa (örn: bir anda 1000 puan) engelle
     IF (NEW.score - OLD.score) > 500 THEN
-        RAISE EXCEPTION 'Güvenlik Uyarısı: Anormal puan artışı tespit edildi!';
+        RAISE EXCEPTION 'Güvenlik Uyarısı: Anormal puan artışı!';
     END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- TRIGGER 2: Skor Güvenlik Tetikleyicisi
 CREATE TRIGGER trg_security_score_check
 BEFORE UPDATE ON users
-FOR EACH ROW
-EXECUTE FUNCTION func_prevent_score_hack();
+FOR EACH ROW EXECUTE FUNCTION func_prevent_score_hack();
 
 
 -- =============================================================
--- 9. ÖRNEK VERİLER (REQ 1: Tablo başına 10+ kayıt)
+-- 9. ÖRNEK VERİLER (REQ 1: Tablo başına min 10 kayıt)
 -- =============================================================
--- Kullanıcılar (Şifreler '123' gibi basit tutuldu)
 INSERT INTO users (email, password, full_name, role, score) VALUES
 ('ali@mail.com', '123', 'Ali Yılmaz', 'SAKIN', 0),
 ('veli@mail.com', '123', 'Veli Demir', 'TOPLAYICI', 0),
@@ -654,6 +619,7 @@ INSERT INTO wastes (owner_id, category_id, city, district, full_location_text, a
 (3, 3, 'İstanbul', 'Beşiktaş', 'Etiler Mah. Nispetiye Cad. No:50 Beşiktaş/İstanbul', 5, 'KG'),
 (4, 4, 'İstanbul', 'Fatih', 'Balat Mah. Haliç Cad. No:7 Fatih/İstanbul', 2, 'ADET'),
 (6, 5, 'İstanbul', 'Üsküdar', 'Beylerbeyi Mah. Yalı Boyu No:9 Üsküdar/İstanbul', 30, 'ADET');
+
 
 
 
