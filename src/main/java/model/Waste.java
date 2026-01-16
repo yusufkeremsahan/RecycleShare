@@ -9,10 +9,8 @@ public class Waste {
     private String unit;
     private String status;
     private String ownerName;
-
-    // YENİ EKLENEN ALANLAR
-    private String dateInfo;      // "05.01.2026 14:30" gibi tarih
-    private String remainingTime; // "2 sa 15 dk kaldı" gibi geri sayım
+    private String dateInfo;
+    private String remainingTime;
 
     public Waste(int id, String category, String district, String fullLocation, double amount, String unit, String status, String ownerName, String dateInfo, String remainingTime) {
         this.id = id;
@@ -27,7 +25,6 @@ public class Waste {
         this.remainingTime = remainingTime;
     }
 
-    // Getterlar
     public int getId() { return id; }
     public String getCategory() { return category; }
     public String getDistrict() { return district; }
@@ -36,6 +33,6 @@ public class Waste {
     public String getUnit() { return unit; }
     public String getStatus() { return status; }
     public String getOwnerName() { return ownerName; }
-    public String getDateInfo() { return dateInfo; }       // YENİ
-    public String getRemainingTime() { return remainingTime; } // YENİ
+    public String getDateInfo() { return dateInfo; }
+    public String getRemainingTime() { return remainingTime; }
 }

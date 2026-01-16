@@ -20,6 +20,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import java.util.List;
 
 public class ResidentPage {
 
@@ -59,14 +60,17 @@ public class ResidentPage {
         BorderPane contentArea = new BorderPane();
         contentArea.setPadding(new Insets(20));
 
+        // Form kutusu
         VBox leftCard = createFormCard();
         contentArea.setLeft(leftCard);
         BorderPane.setMargin(leftCard, new Insets(0, 20, 0, 0));
 
+        // Liderlik tablosu
         VBox rightCard = createLeaderboardCard();
         contentArea.setRight(rightCard);
         BorderPane.setMargin(rightCard, new Insets(0, 0, 0, 20));
 
+        // Gecmis islemler tablosu
         VBox centerCard = createTableCard();
         contentArea.setCenter(centerCard);
 
@@ -116,17 +120,13 @@ public class ResidentPage {
             try { new LoginApp().start(new Stage()); } catch (Exception ex) { ex.printStackTrace(); }
         });
 
-        // ResidentPage.java -> createHeader() içine:
-
         Button btnNotify = new Button("🔔");
         btnNotify.setStyle("-fx-background-color: #FFC107; -fx-text-fill: black; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 20;");
         btnNotify.setTooltip(new Tooltip("Bildirimler"));
 
         btnNotify.setOnAction(e -> {
-            // 1. Veritabanından mesajları çek
-            java.util.List<String> notes = userDAO.getUserNotifications(userEmail);
+            List<String> notes = userDAO.getUserNotifications(userEmail);
 
-            // 2. Ekranda Göster
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
             alert.setTitle("Bildirim Kutusu");
             alert.setHeaderText("Son Olaylar");
@@ -148,6 +148,7 @@ public class ResidentPage {
         return header;
     }
 
+    // Atik ekleme formunun tasarimi
     private VBox createFormCard() {
         VBox mainCard = new VBox(15);
         mainCard.setPadding(new Insets(25));
@@ -190,14 +191,12 @@ public class ResidentPage {
         txtAddrTitle = new TextField(); txtAddrTitle.setPromptText("Adres Başlığı"); styleField(txtAddrTitle);
         txtAddrTitle.setVisible(false); txtAddrTitle.managedProperty().bind(txtAddrTitle.visibleProperty());
 
-        // YENİ HALİ (createFormCard metodunun içine, eski cmbCategory yerine):
-
         cmbCategory = new ComboBox<>();
         cmbCategory.setPromptText("Kategori Seçiniz");
-        cmbCategory.setMaxWidth(Double.MAX_VALUE); // Genişlik ayarı
+        cmbCategory.setMaxWidth(Double.MAX_VALUE);
         try { cmbCategory.getItems().addAll(wasteDAO.getCategories()); } catch (Exception ex) {}
 
-// --- YENİ EKLENEN BUTON (EXCEPT SORGUSUNU ÇAĞIRIR) ---
+        // Soru isareti butonu - hic kullanilmayan kategorileri gosteriyor
         Button btnCheckEmpty = new Button("?");
         btnCheckEmpty.setTooltip(new Tooltip("Hiç ilan açılmamış kategorileri gör"));
         btnCheckEmpty.setStyle("-fx-background-color: #0288D1; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;");
@@ -213,7 +212,6 @@ public class ResidentPage {
             }
         });
 
-// Kategori ve Butonu yan yana koymak için HBox
         HBox catBox = new HBox(10, cmbCategory, btnCheckEmpty);
         HBox.setHgrow(cmbCategory, Priority.ALWAYS);
         txtAmount = new TextField(); txtAmount.setPromptText("Miktar"); styleField(txtAmount);
@@ -226,12 +224,11 @@ public class ResidentPage {
 
         setupFormEvents(btnAdd, btnDeleteAddr, btnReport);
 
-        // createFormCard metodunun en altındaki ekleme kısmı şöyle olmalı:
         content.getChildren().addAll(
                 new Label("Teslimat Adresi"), addrBox, txtStreet, rowLoc, cmbNeigh, rowBuild, txtDirections, chkSave, txtAddrTitle,
                 new Separator(),
                 new Label("Atık Bilgileri"),
-                catBox, // BURASI DEĞİŞTİ (Eskiden cmbCategory idi)
+                catBox,
                 rowAmt, btnAdd, lblMsg, btnReport
         );
 
@@ -240,6 +237,7 @@ public class ResidentPage {
     }
 
     private void setupFormEvents(Button btnAdd, Button btnDelete, Button btnReport) {
+        // Kayitli adres secilince formu otomatik dolduruyor
         cmbSavedAddresses.setOnAction(e -> {
             String sel = cmbSavedAddresses.getValue();
             if (sel == null) return;
@@ -256,14 +254,17 @@ public class ResidentPage {
 
         chkSave.selectedProperty().addListener((obs, o, n) -> txtAddrTitle.setVisible(n));
 
+        // Il secince ilceleri getiriyor
         cmbCity.setOnAction(e -> {
             if (cmbCity.getValue() != null) { cmbDistrict.getItems().setAll(locationDAO.getDistrictsByCity(cmbCity.getValue())); cmbDistrict.setDisable(false); }
         });
 
+        // Ilce secince mahalleleri getiriyor
         cmbDistrict.setOnAction(e -> {
             if (cmbDistrict.getValue() != null) { cmbNeigh.getItems().setAll(locationDAO.getNeighborhoodsByDistrict(cmbDistrict.getValue())); cmbNeigh.setDisable(false); }
         });
 
+        // Kategoriye gore birimleri (KG/Adet) ayarliyor
         cmbCategory.setOnAction(e -> {
             String sel = cmbCategory.getValue();
             if (sel != null) {
@@ -279,6 +280,7 @@ public class ResidentPage {
         btnReport.setOnAction(e -> showCustomReportDialog());
     }
 
+    // Rapor penceresini acan kod
     private void showCustomReportDialog() {
         String rawReport = userDAO.getImpactReport(userEmail);
         String formattedReport = rawReport.replace("\\n", "\n");
@@ -317,9 +319,10 @@ public class ResidentPage {
         reportStage.show();
     }
 
+    // Siparis olustur butonuna basinca burasi calisiyor
     private void handleAddWaste() {
         try {
-            // 1. Arayüzden verileri çekelim
+            // Formdaki bilgileri al
             String cat = cmbCategory.getValue();
             String unit = cmbUnit.getValue();
             String amountText = txtAmount.getText().trim();
@@ -331,18 +334,17 @@ public class ResidentPage {
             String buildNo = txtBuildNo.getText().trim();
             String door = txtDoor.getText().trim();
 
-            // 2. VALIDASYON: Adres veya Atık bilgileri boş mu?
-            // Şehir, İlçe, Mahalle, Cadde, Bina No veya Daire No boşsa işlemi durdur.
+            // Bos alan var mi diye kontrol et
             if (city == null || dist == null || neigh == null ||
                     street.isEmpty() || buildNo.isEmpty() || door.isEmpty() ||
                     cat == null || unit == null || amountText.isEmpty()) {
 
                 lblMsg.setText("Hata: Lütfen adres ve atık bilgilerini eksiksiz doldurun!");
                 lblMsg.setTextFill(Color.RED);
-                return; // <--- KRİTİK NOKTA: Burası işlemi durdurur.
+                return;
             }
 
-            // 3. Adresi Kaydetme İsteği Varsa (Opsiyonel)
+            // Adresi kaydet secili ise kaydet
             if (chkSave.isSelected()) {
                 if (txtAddrTitle.getText().trim().isEmpty()) {
                     lblMsg.setText("Hata: Adresi kaydetmek için bir başlık girmelisiniz.");
@@ -353,18 +355,23 @@ public class ResidentPage {
                 refreshAddressCombo();
             }
 
-            // 4. Açık Adres Metnini Oluştur
             String fullLoc = String.format("%s Mah. %s No:%s D:%s %s/%s", neigh, street, buildNo, door, dist, city);
 
-            // 5. Veritabanına Ekle
+            // Veritabanina ekle
             if (wasteDAO.addWaste(userEmail, cat, city, dist, fullLoc, Double.parseDouble(amountText), unit)) {
                 lblMsg.setText("Sipariş Başarıyla Oluşturuldu!");
                 lblMsg.setTextFill(Color.GREEN);
                 refreshTable();
 
-                // Formu temizle ki yanlışlıkla tekrar basılmasın
                 txtAmount.clear();
-                // İstersen clearAddressFields(); metodunu da buraya ekleyebilirsin.
+
+                cmbCategory.getSelectionModel().clearSelection();
+                cmbUnit.getSelectionModel().clearSelection();
+                cmbUnit.getItems().clear();
+
+                clearAddressFields();
+                cmbSavedAddresses.getSelectionModel().selectFirst();
+
             } else {
                 lblMsg.setText("Veritabanı hatası oluştu.");
                 lblMsg.setTextFill(Color.RED);
@@ -379,6 +386,8 @@ public class ResidentPage {
             lblMsg.setTextFill(Color.RED);
         }
     }
+
+    // Gecmis islemleri gosteren tablo
     private VBox createTableCard() {
         VBox card = new VBox(15); card.setPadding(new Insets(25)); styleCard(card);
         Label lbl = new Label("Geçmiş İşlemlerim"); lbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
@@ -397,6 +406,7 @@ public class ResidentPage {
         return card;
     }
 
+    // Liderlik tablosu
     private VBox createLeaderboardCard() {
         VBox card = new VBox(15); card.setPadding(new Insets(25)); card.setPrefWidth(300);
         card.setStyle("-fx-background-color: #FFF3E0; -fx-background-radius: 15;");
@@ -407,7 +417,7 @@ public class ResidentPage {
         TableColumn<UserDAO.UserScore, String> c1 = new TableColumn<>("İsim");
         c1.setMinWidth(200);
 
-        // --- YILDIZLI EMOJİ KULLANIMI ---
+        // Eger yıldız varsa ismin yanina koy
         c1.setCellFactory(column -> new TableCell<UserDAO.UserScore, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -420,14 +430,12 @@ public class ResidentPage {
                     HBox box = new HBox(5);
                     box.setAlignment(Pos.CENTER_LEFT);
 
-                    // Kullanıcı ismini ekle
                     Label lblName = new Label(user.getName());
                     box.getChildren().add(lblName);
 
-                    // Eğer 5+ işlemi varsa yıldız emojisi ekle
                     if (user.isHasStar()) {
-                        Label lblStar = new Label("⭐"); // Emoji burada metin olarak ekleniyor
-                        lblStar.setStyle("-fx-font-size: 16px;"); // Emojinin boyutunu buradan ayarlayabilirsin
+                        Label lblStar = new Label("⭐");
+                        lblStar.setStyle("-fx-font-size: 16px;");
                         box.getChildren().add(lblStar);
                     }
 
@@ -452,6 +460,7 @@ public class ResidentPage {
         cmbSavedAddresses.getSelectionModel().selectFirst();
     }
 
+    // Formu temizlemek icin
     private void clearAddressFields() {
         txtStreet.clear();
         txtBuildNo.clear();
@@ -480,7 +489,6 @@ public class ResidentPage {
     private void refreshTable() { table.setItems(FXCollections.observableArrayList(wasteDAO.getMyWastes(userEmail))); }
 
     private void refreshLeaderboard() {
-        // UserDAO'da güncellediğimiz metodu çağırıyoruz
         tableTop.setItems(FXCollections.observableArrayList(userDAO.getTopUsersWithStars()));
     }
 

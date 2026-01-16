@@ -29,7 +29,6 @@ public class CollectorPage {
     private ToggleButton tglReserved;
     private Button btnAction;
 
-    // Dinamik sütun yönetimi için referanslar
     private TableColumn<Waste, String> cStat;
     private TableColumn<Waste, String> cTime;
 
@@ -56,13 +55,14 @@ public class CollectorPage {
         rootPane.getChildren().add(mainLayout);
 
         setupTable();
-        switchMode(true); // Varsayılan olarak müsait atıklarla başla
+        switchMode(true);
 
         Scene scene = new Scene(rootPane, 1280, 800);
         stage.setScene(scene);
         stage.show();
     }
 
+    // Menu kısmı
     private HBox createHeader() {
         HBox header = new HBox();
         header.setPadding(new Insets(15, 40, 15, 40));
@@ -126,12 +126,13 @@ public class CollectorPage {
         btnRefresh.setStyle("-fx-background-color: #f5f5f5; -fx-text-fill: #333; -fx-border-color: #ddd; -fx-border-radius: 5; -fx-cursor: hand; -fx-padding: 10 20;");
         btnRefresh.setOnAction(e -> { txtSearch.clear(); refreshTable(); });
 
-        Button btnAnalyze = new Button("Bölge Analizi 📊");
+        Button btnAnalyze = new Button("Bölge Analizi ");
         btnAnalyze.setStyle("-fx-background-color: #7B1FA2; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-cursor: hand; -fx-padding: 10 20;");
         btnAnalyze.setOnAction(e -> showAnalysisDialog());
 
         topRow.getChildren().addAll(txtSearch, btnSearch, btnRefresh, btnAnalyze);
 
+        // Sekmeler
         HBox tabRow = new HBox(0);
         tabRow.setAlignment(Pos.CENTER_LEFT);
         tglAvailable = new ToggleButton("Müsait Atıklar");
@@ -149,7 +150,7 @@ public class CollectorPage {
         VBox.setVgrow(table, Priority.ALWAYS);
         table.setStyle("-fx-base: #ffffff; -fx-font-size: 14px;");
 
-        btnAction = new Button("SEÇİLEN GÖREVİ AL 🚛");
+        btnAction = new Button("SEÇİLEN GÖREVİ AL");
         stylePrimaryButton(btnAction);
         btnAction.setOnAction(e -> handleMainAction());
 
@@ -182,7 +183,6 @@ public class CollectorPage {
         TableColumn<Waste, String> cUnit = new TableColumn<>("Birim");
         cUnit.setCellValueFactory(new PropertyValueFactory<>("unit"));
 
-        // Gereksiz sütunları burada tanımlıyoruz ama henüz eklemiyoruz
         cStat = new TableColumn<>("Durum");
         cStat.setCellValueFactory(new PropertyValueFactory<>("status"));
         cStat.setMinWidth(120);
@@ -192,7 +192,6 @@ public class CollectorPage {
         cTime.setMinWidth(140);
         cTime.setStyle("-fx-text-fill: #D32F2F; -fx-font-weight: bold;");
 
-        // Her zaman görünecek sütunları ekle
         table.getColumns().addAll(cDate, cName, cCat, cLoc, cAmt, cUnit);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
     }
@@ -205,7 +204,6 @@ public class CollectorPage {
             stylePrimaryButton(btnAction);
             tglAvailable.setSelected(true);
 
-            // Müsait atıklarda gereksiz sütunları kaldır
             table.getColumns().remove(cStat);
             table.getColumns().remove(cTime);
         } else {
@@ -213,7 +211,6 @@ public class CollectorPage {
             btnAction.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-size: 16px; -fx-padding: 15;");
             tglReserved.setSelected(true);
 
-            // Rezerve sayfasında takipleri için tekrar ekle
             if (!table.getColumns().contains(cStat)) table.getColumns().add(cStat);
             if (!table.getColumns().contains(cTime)) table.getColumns().add(cTime);
         }
@@ -254,6 +251,7 @@ public class CollectorPage {
         }
     }
 
+    // Puanlama penceresi
     private void handleCompletion(Waste waste) {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("Teslimat Onayı");
@@ -283,6 +281,7 @@ public class CollectorPage {
         }
     }
 
+    // Veritabanindan guncel listeyi alıyor
     private void refreshTable() {
         if (isViewingAvailable) table.setItems(FXCollections.observableArrayList(wasteDAO.getAvailableWastes()));
         else table.setItems(FXCollections.observableArrayList(wasteDAO.getMyReservations(userEmail)));
@@ -290,6 +289,7 @@ public class CollectorPage {
 
     private void showAlert(String t, String c) { Alert a = new Alert(Alert.AlertType.INFORMATION); a.setTitle(t); a.setContentText(c); a.showAndWait(); }
 
+    // Bolge analizi
     private void showAnalysisDialog() {
         String analysisText = wasteDAO.getDistrictAnalysis();
         Stage dialog = new Stage();

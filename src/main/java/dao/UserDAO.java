@@ -7,7 +7,7 @@ import java.util.List;
 
 public class UserDAO {
 
-    // GİRİŞ İŞLEMİ (Email ile)
+    // Giriş işlemi mail ve şifre kontrolü yapar.
     public String login(String email, String password) {
         String sql = "SELECT role FROM users WHERE email = ? AND password = ?";
         try (Connection conn = DbHelper.getConnection();
@@ -27,7 +27,7 @@ public class UserDAO {
         return null;
     }
 
-    // YENİ KULLANICI KAYDI (Email ile)
+    // Yeni kullanıcı kaydı: Aynı maille sadece tek bir rol ile kayıt olabilecek şekilde tasarlanmıştır.
     public boolean register(String email, String password, String fullName, String role) {
         String sql = "INSERT INTO users (email, password, full_name, role, score) VALUES (?, ?, ?, ?, 0)";
 
@@ -47,22 +47,21 @@ public class UserDAO {
         }
     }
 
-    // LİDERLİK TABLOSU İÇİN VERİ MODELİ
+    // Liderlik tablosu için veri modeli
     public static class UserScore {
         private String name;
         private double score;
-        private boolean hasStar; // Eksik olan değişken eklendi
+        private boolean hasStar;
 
         public UserScore(String name, double score) {
             this.name = name;
             this.score = score;
-            this.hasStar = false; // Varsayılan değer
+            this.hasStar = false;
         }
 
         public String getName() { return name; }
         public double getScore() { return score; }
 
-        // Metod gövdeleri dolduruldu
         public void setHasStar(boolean hasStar) {
             this.hasStar = hasStar;
         }
@@ -72,7 +71,7 @@ public class UserDAO {
         }
     }
 
-    // YENİ: YILDIZLI LİDERLİK METODU
+    // Liderlik Tablosu 5'ten fazla atık atmış insanlar için de güvenli olduklarını belirten yıldız rozeti.
     public List<UserScore> getTopUsersWithStars() {
         List<UserScore> list = new ArrayList<>();
 
@@ -94,7 +93,7 @@ public class UserDAO {
         return list;
     }
 
-    // RAPOR FONKSİYONU
+    // Rapor Fonksiyonu
     public String getImpactReport(String email) {
         String report = "Henüz rapor verisi yok.";
         String sql = "SELECT get_personal_impact_report((SELECT user_id FROM users WHERE email = ?))";
@@ -112,9 +111,7 @@ public class UserDAO {
         return report;
     }
 
-    // UserDAO.java içine ekle:
-
-    // BİLDİRİMLERİ OKUMA METODU (Posta Kutusuna Bak)
+    // Bildirimler İçin Fonksiyon
     public List<String> getUserNotifications(String email) {
         List<String> messages = new ArrayList<>();
         String sql = "SELECT message, to_char(created_at, 'DD.MM HH24:MI') as tarih " +

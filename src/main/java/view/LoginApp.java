@@ -30,23 +30,19 @@ public class LoginApp extends Application {
         primaryStage.getIcons().add(new Image("file:logo4.png"));
         showLoginScreen();
 
-        // Kart 420px olduğu için sahneyi biraz daha geniş (550) ve uzun (750) tuttuk
         Scene scene = new Scene(rootPane, 490, 730);
         primaryStage.setScene(scene);
         primaryStage.show();
     }
 
-    // YARDIMCI METOT: Logoyu güvenli şekilde yükle
-    // Not: Bilgisayarındaki dosyalar .jpg ise burayı "file:logo"+no+".jpg" yapmalısın.
     private ImageView getLogo(int no, double width) {
         ImageView logo = new ImageView();
         try {
-            // Varsayılan olarak png arıyor, jpg ise uzantıyı değiştirmeyi unutma
             logo.setImage(new Image("file:logo" + no + ".png"));
             logo.setFitWidth(width);
             logo.setPreserveRatio(true);
         } catch (Exception e) {
-            System.out.println("Logo yüklenemedi: " + e.getMessage());
+            System.out.println("Logo bulunamadi");
         }
         return logo;
     }
@@ -54,7 +50,6 @@ public class LoginApp extends Application {
     private void showLoginScreen() {
         VBox card = createCard();
 
-        // 1. LOGO (Genişlik 350px)
         ImageView logoView = getLogo(1, 350);
 
         TextField txtEmail = new TextField();
@@ -69,32 +64,33 @@ public class LoginApp extends Application {
         styleButton(btnLogin);
 
         Label lblMsg = new Label();
-        // Mesaj label'ı için sabit bir yükseklik verelim ki metin gelince kayma yapmasın
         lblMsg.setMinHeight(20);
 
+        // Giris butonuna tiklayinca veritabanindan kontrol ediyoruz
         btnLogin.setOnAction(e -> {
             String email = txtEmail.getText().trim();
             String pass = txtPass.getText().trim();
             String role = userDAO.login(email, pass);
+
             if (role != null) {
                 lblMsg.setText("Giriş başarılı!"); lblMsg.setTextFill(Color.GREEN);
-                openApp(role, email);
+                openApp(role, email); // Role gore sayfayi ac
             } else {
                 lblMsg.setText("Hatalı e-posta veya şifre!"); lblMsg.setTextFill(Color.RED);
-                shakeAnimation(card);
+                shakeAnimation(card); // Hata olunca titret
             }
         });
 
+        // Kayit ol sayfasina gecis linki
         Hyperlink linkRegister = new Hyperlink("Hemen Kaydol");
         linkRegister.setTextFill(Color.web("#2E7D32"));
         linkRegister.setOnAction(e -> showRegisterScreen());
         TextFlow flow = new TextFlow(new Text("Hesabın yok mu? "), linkRegister);
         flow.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
 
-        // Boşlukları (Label"") VBox spacing zaten hallediyor ama ekstra boşluk istersen Region kullanabilirsin.
-        // Burada basitlik adına senin yapını korudum.
         card.getChildren().addAll(logoView, new Label(""), txtEmail, txtPass, new Label(""), btnLogin, lblMsg, new Label(""), flow);
 
+        // Ekrani temizleyip yeni karti ekliyoruz
         rootPane.getChildren().clear();
         rootPane.getChildren().add(card);
     }
@@ -102,7 +98,6 @@ public class LoginApp extends Application {
     private void showRegisterScreen() {
         VBox card = createCard();
 
-        // 3. LOGO (Kayıt ekranı için logo no:3, yine 350px istedin)
         ImageView logoView = getLogo(3, 350);
 
         TextField txtEmail = new TextField();
@@ -117,6 +112,7 @@ public class LoginApp extends Application {
         txtPass.setPromptText("Şifre Belirle");
         styleField(txtPass);
 
+        // Rol secimi icin kutu
         ComboBox<String> cmbRole = new ComboBox<>();
         cmbRole.getItems().addAll("Mahalle Sakini", "Geri Dönüşüm Toplayıcısı");
         cmbRole.setPromptText("Hesap Türü");
@@ -135,16 +131,21 @@ public class LoginApp extends Application {
             String name = txtFullname.getText().trim();
             String selectedRole = cmbRole.getValue();
 
+            // Bos alan var mi kontrol et
             if (email.isEmpty() || pass.isEmpty() || name.isEmpty() || selectedRole == null) {
                 lblMsg.setText("Tüm alanları doldurun!"); lblMsg.setTextFill(Color.RED);
                 shakeAnimation(card); return;
             }
+
+            // Veritabani icin rol isimlerini ayarliyoruz
             String dbRole = "";
             if (selectedRole.equals("Mahalle Sakini")) {
                 dbRole = "SAKIN";
             } else if (selectedRole.equals("Geri Dönüşüm Toplayıcısı")) {
                 dbRole = "TOPLAYICI";
             }
+
+            // Kayit islemi
             if (userDAO.register(email, pass, name, dbRole)) {
                 Alert alert = new Alert(Alert.AlertType.INFORMATION, "Kayıt başarılı! Giriş yapabilirsiniz.");
                 alert.showAndWait(); showLoginScreen();
@@ -169,9 +170,6 @@ public class LoginApp extends Application {
         VBox card = new VBox(15);
         card.setAlignment(Pos.CENTER);
 
-        // --- BOYUT SABİTLEME ---
-        // 350px logo + 30px sağ/sol padding = 410px içerik alanı gerekir.
-        // Kartı 420px genişliğinde, 700px yüksekliğinde sabitliyoruz.
         card.setPrefSize(420, 700);
         card.setMinSize(420, 700);
         card.setMaxSize(420, 700);
@@ -191,6 +189,7 @@ public class LoginApp extends Application {
         b.setPadding(new Insets(10));
     }
 
+    // Role gore hangi sayfayi acacagini seciyor
     private void openApp(String role, String email) {
         try {
             primaryStage.close();
@@ -199,6 +198,7 @@ public class LoginApp extends Application {
         } catch (Exception e) { e.printStackTrace(); }
     }
 
+    // Hata oldugunda pencereyi sallayan animasyon
     private void shakeAnimation(VBox node) {
         javafx.animation.TranslateTransition tt = new javafx.animation.TranslateTransition(javafx.util.Duration.millis(50), node);
         tt.setByX(10); tt.setCycleCount(4); tt.setAutoReverse(true); tt.play();

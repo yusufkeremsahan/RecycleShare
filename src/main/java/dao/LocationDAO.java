@@ -8,20 +8,14 @@ import java.util.List;
 
 public class LocationDAO {
 
-    // Tüm Şehirleri Getir (Artık Sadece İstanbul)
+    //İleride birden çok şehir olursa diye bu şekilde tasarlandı.
     public List<String> getAllCities() {
-        // Veritabanı tablosu silindiği için sabit liste dönüyoruz.
-        // Bu sayede arayüz kodunu bozmadan İstanbul'u tek seçenek yapıyoruz.
         return Arrays.asList("İstanbul");
     }
 
-    // Seçilen Şehrin İlçelerini Getir
     public List<String> getDistrictsByCity(String cityName) {
-        // cityName parametresi "İstanbul" değilse boş dönebilir veya yine de ilçeleri getirebiliriz.
-        // Ancak biz sadece İstanbul ilçelerini veritabanından çekeceğiz.
 
         List<String> list = new ArrayList<>();
-        // Artık City tablosuna JOIN yapmıyoruz, doğrudan tüm ilçeleri çekiyoruz.
         String sql = "SELECT district_name FROM tr_districts ORDER BY district_name";
 
         try (Connection conn = DbHelper.getConnection();

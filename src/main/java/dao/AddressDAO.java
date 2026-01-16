@@ -20,7 +20,6 @@ public class AddressDAO {
         return titles;
     }
 
-    // Adres Detaylarını Getir
     public AddressDetails getAddressDetails(String email, String title) {
         String sql = "SELECT * FROM addresses WHERE user_id = (SELECT user_id FROM users WHERE email = ?) AND title = ?";
         try (Connection conn = DbHelper.getConnection();
@@ -48,8 +47,6 @@ public class AddressDAO {
     public boolean saveAddress(String email, String title, String city, String district, String neigh,
                                String street, String buildNo, String floor, String door, String direct) {
 
-        // Aynı isimde adres varsa önce onu güncellemeyi deneyebiliriz ama şimdilik duplicate kontrolü yapmadan ekliyoruz
-        // (Veya unique constraint varsa hata verir, try-catch yakalar)
 
         String fullText = street + " No:" + buildNo + " D:" + door + " " + neigh + " " + district + "/" + city;
         String sql = "INSERT INTO addresses (user_id, title, city, district, neighborhood, street, building_no, floor_no, door_no, directions, full_address_text) " +
@@ -72,7 +69,7 @@ public class AddressDAO {
         } catch (Exception e) { e.printStackTrace(); return false; }
     }
 
-    // YENİ: Adres Silme Fonksiyonu
+    // Adres Silme Fonksiyonu
     public boolean deleteAddress(String email, String title) {
         String sql = "DELETE FROM addresses WHERE user_id = (SELECT user_id FROM users WHERE email = ?) AND title = ?";
         try (Connection conn = DbHelper.getConnection();

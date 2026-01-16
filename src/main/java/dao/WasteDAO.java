@@ -8,30 +8,25 @@ import java.util.List;
 
 public class WasteDAO {
 
-    // --- YENİ EKLENEN OTO-İPTAL METODU ---
-    // Bu metot, süresi dolan rezervasyonları kontrol eder ve iptal eder.
+    // Suresi dolan rezervasyonlari iptal edip bosa cikariyoruz
     private void checkAndReleaseExpiredJobs() {
-        // TEST İÇİN: 2 Dakika ('2 minutes')
-        // GERÇEK İÇİN: 24 Saat ('24 hours') yapmayı unutma!
         String interval = "2 minutes";
 
+        // Suresi gecenleri tekrar MUSAIT yap
         String sqlUpdate = "UPDATE wastes SET status = 'MUSAIT' " +
                 "WHERE status = 'REZERVEYE_ALINDI' AND waste_id IN (" +
                 "    SELECT waste_id FROM collections " +
                 "    WHERE reserved_at + INTERVAL '" + interval + "' < NOW()" +
                 ")";
 
-        // MUSAIT duruma dönen atıkların collection kaydını silmemiz lazım ki
-        // toplayıcının "Rezerve Ettiklerim" listesinden düşsün.
+        // Collection tablosundan sil
         String sqlDelete = "DELETE FROM collections " +
                 "WHERE waste_id IN (SELECT waste_id FROM wastes WHERE status = 'MUSAIT')";
 
         try (Connection conn = DbHelper.getConnection()) {
-            // 1. Önce atık durumunu MUSAIT'e çevir
             try (Statement stmt = conn.createStatement()) {
                 stmt.executeUpdate(sqlUpdate);
             }
-            // 2. Sonra boşa çıkan rezervasyon kaydını sil
             try (Statement stmt = conn.createStatement()) {
                 stmt.executeUpdate(sqlDelete);
             }
@@ -39,8 +34,8 @@ public class WasteDAO {
             e.printStackTrace();
         }
     }
-    // -------------------------------------
 
+    // Kategorileri listele
     public List<String> getCategories() {
         List<String> categories = new ArrayList<>();
         String sql = "SELECT category_name FROM waste_categories";
@@ -52,6 +47,7 @@ public class WasteDAO {
         return categories;
     }
 
+    // Yeni atik ekleme
     public boolean addWaste(String email, String categoryName, String city, String district, String fullLocation, double amount, String unit) {
         String sql = "INSERT INTO wastes (owner_id, category_id, city, district, full_location_text, amount, unit) VALUES " +
                 "((SELECT user_id FROM users WHERE email = ?), " +
@@ -71,6 +67,7 @@ public class WasteDAO {
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
+    // Sadece benim eklediklerim
     public List<Waste> getMyWastes(String email) {
         String sql = "SELECT w.waste_id, c.category_name, w.district, w.full_location_text, w.amount, w.unit, w.status, u.full_name, " +
                 "to_char(w.created_at, 'DD.MM.YYYY HH24:MI') as display_date " +
@@ -81,8 +78,8 @@ public class WasteDAO {
         return getWastesByQuery(sql, email);
     }
 
+    // Tum musait atiklar (son 30 gunluk)
     public List<Waste> getAvailableWastes() {
-        // LİSTELEMEDEN ÖNCE TEMİZLİK YAP!
         checkAndReleaseExpiredJobs();
 
         String sql = "SELECT waste_id, category_name, district, full_location_text, amount, unit, status, owner_name, " +
@@ -91,20 +88,18 @@ public class WasteDAO {
         return getWastesByQuery(sql, null);
     }
 
+    // Arama cubugu icin
     public List<Waste> searchWastesByDistrict(String keyword) {
-        // ARAMADAN ÖNCE DE TEMİZLİK YAP
         checkAndReleaseExpiredJobs();
-
         String sql = "SELECT waste_id, category_name, district, full_location_text, amount, unit, status, owner_name, " +
                 "to_char(created_at, 'DD.MM.YYYY HH24:MI') as display_date " +
                 "FROM available_wastes_view WHERE full_location_text ILIKE ?";
         return getWastesByQuery(sql, "%" + keyword + "%");
     }
 
+    // Benim rezerve ettigim isler ve kalan sure
     public List<Waste> getMyReservations(String email) {
-        // LİSTELEMEDEN ÖNCE TEMİZLİK YAP!
         checkAndReleaseExpiredJobs();
-
         String sql = "SELECT w.waste_id, c.category_name, w.district, w.full_location_text, w.amount, w.unit, w.status, u_owner.full_name AS owner_name, " +
                 "to_char(col.reserved_at, 'DD.MM.YYYY HH24:MI') as display_date, " +
                 "EXTRACT(EPOCH FROM (col.reserved_at + INTERVAL '2 minutes' - NOW()))::INT as seconds_left " +
@@ -117,14 +112,16 @@ public class WasteDAO {
         return getWastesByQuery(sql, email);
     }
 
+    // Gorevi alma (Rezervasyon)
     public boolean reserveWaste(int wasteId, String collectorEmail) {
         String sql = "INSERT INTO collections (waste_id, collector_id, reserved_at) VALUES (?, (SELECT user_id FROM users WHERE email = ?), NOW())";
         String sqlUpd = "UPDATE wastes SET status = 'REZERVEYE_ALINDI' WHERE waste_id = ?";
 
         try (Connection conn = DbHelper.getConnection()) {
-            conn.setAutoCommit(false);
+            conn.setAutoCommit(false); // Transaction baslat
             try (PreparedStatement ps1 = conn.prepareStatement(sql);
                  PreparedStatement ps2 = conn.prepareStatement(sqlUpd)) {
+
                 ps1.setInt(1, wasteId);
                 ps1.setString(2, collectorEmail);
                 ps1.executeUpdate();
@@ -132,14 +129,15 @@ public class WasteDAO {
                 ps2.setInt(1, wasteId);
                 ps2.executeUpdate();
 
-                conn.commit();
+                conn.commit(); // Hata yoksa onayla
                 return true;
-            } catch(Exception ex) { conn.rollback(); return false; }
+            } catch(Exception ex) { conn.rollback(); return false; } // Hata varsa geri al
         } catch (SQLException e) { return false; }
     }
 
+    // Gorevi bitirme ve puanlama
     public boolean completeCollection(int wasteId, int rClean, int rAcc, int rPunc) {
-        String sql = "SELECT complete_waste_process(?, ?, ?, ?)";
+        String sql = "SELECT complete_waste_process(?, ?, ?, ?)"; // SQL fonksiyonunu cagiriyoruz
         try (Connection conn = DbHelper.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, wasteId); pstmt.setInt(2, rClean); pstmt.setInt(3, rAcc); pstmt.setInt(4, rPunc);
@@ -149,6 +147,7 @@ public class WasteDAO {
         return false;
     }
 
+    // Ayni anda farkli adresten is alamasin diye kontrol
     public boolean isReservationAllowed(String collectorEmail, int targetWasteId) {
         String sql = "SELECT COUNT(*) FROM collections c " +
                 "JOIN wastes w_active ON c.waste_id = w_active.waste_id " +
@@ -167,6 +166,7 @@ public class WasteDAO {
         return false;
     }
 
+    // Veritabani sonucunu listeye cevirme
     private List<Waste> getWastesByQuery(String sql, String param) {
         List<Waste> list = new ArrayList<>();
         try (Connection conn = DbHelper.getConnection();
@@ -175,6 +175,7 @@ public class WasteDAO {
             ResultSet rs = pstmt.executeQuery();
             while(rs.next()) {
                 String ownerName = "";
+                // Bazen full_name bazen owner_name gelebiliyor, hata vermesin diye try-catch
                 try { ownerName = rs.getString("full_name"); } catch(Exception e) {
                     try { ownerName = rs.getString("owner_name"); } catch(Exception ex) {}
                 }
@@ -184,6 +185,7 @@ public class WasteDAO {
 
                 String countdown = "";
                 try {
+                    // Kalan sureyi hesapla
                     long seconds = rs.getLong("seconds_left");
                     if (!rs.wasNull()) {
                         if (seconds > 0) {
@@ -210,11 +212,11 @@ public class WasteDAO {
         } catch (Exception e) { e.printStackTrace(); }
         return list;
     }
-    // CURSOR KULLANAN FONKSİYONU ÇAĞIRMA (REQ 11 & 17)
-    // Bunu CollectorPage kullanacak
+
+    // Ilce yogunluk analizi
     public String getDistrictAnalysis() {
         String analysis = "";
-        String sql = "SELECT analyze_district_performance()"; // SQL'deki cursor'lı fonksiyon
+        String sql = "SELECT analyze_district_performance()"; // SQL Cursor fonksiyonu
 
         try (Connection conn = DbHelper.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -229,11 +231,12 @@ public class WasteDAO {
         }
         return analysis;
     }
-    // WasteDAO.java dosyasının en altına, son parantezden önce ekle:
 
+    // Hic kullanilmayan kategorileri bul
     public List<String> getUnusedCategories() {
         List<String> list = new ArrayList<>();
-        // HOCANIN İSTEDİĞİ EXCEPT SORGUSU BURADA
+
+        // EXCEPT kullanarak hic atik girilmemis kategorileri buluyoruz
         String sql = "SELECT category_name FROM waste_categories " +
                 "EXCEPT " +
                 "SELECT c.category_name FROM wastes w " +
